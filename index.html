@@ -291,11 +291,94 @@ body::before{
   background:none;color:var(--txt2);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .2s}
 .btn-confirm-no:hover{background:var(--bg3)}
 
+/* ─── intro modal ─── */
+.intro-modal{background:#ffffff;border:1px solid var(--border2);border-radius:20px;
+  padding:28px 28px 24px;animation:popIn .4s cubic-bezier(.34,1.56,.64,1);
+  max-width:340px;width:92%;position:relative;overflow:hidden}
+.intro-modal::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--accent),var(--accent2),var(--gold))}
+.intro-header{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.intro-icon{font-size:32px;flex-shrink:0}
+.intro-main-title{font-size:20px;font-weight:700;color:var(--txt)}
+.intro-items{display:flex;flex-direction:column;gap:10px;margin-bottom:22px}
+.intro-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;
+  background:var(--bg3);border-radius:10px;border:1px solid var(--border)}
+.intro-item-icon{font-size:20px;flex-shrink:0;margin-top:1px}
+.intro-item-text{font-size:13px;color:var(--txt2);line-height:1.5}
+.intro-item-text strong{color:var(--txt);font-weight:700;display:block;margin-bottom:2px}
+.btn-intro-ok{width:100%;padding:12px;border:none;border-radius:var(--radius);
+  background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;
+  font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s}
+.btn-intro-ok:hover{opacity:.9;transform:translateY(-1px)}
+
+/* ─── motto ─── */
+.motto-wrap{display:flex;align-items:center;gap:6px;margin-top:3px}
+.motto-text{font-size:11px;color:var(--txt3);font-style:italic;cursor:pointer;
+  transition:color .15s;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.motto-text:hover{color:var(--accent)}
+.edit-motto-btn{background:none;border:none;cursor:pointer;color:var(--txt3);
+  padding:2px;display:flex;align-items:center;transition:color .15s;flex-shrink:0}
+.edit-motto-btn:hover{color:var(--accent)}
+
+/* ─── motto edit modal ─── */
+.motto-modal{background:#ffffff;border:1px solid var(--border2);border-radius:20px;
+  padding:24px 28px;text-align:center;animation:popIn .3s cubic-bezier(.34,1.56,.64,1);
+  max-width:300px;width:90%;position:relative;overflow:hidden}
+.motto-modal::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--gold),var(--accent))}
+.motto-input{width:100%;padding:10px 12px;border:1px solid var(--border2);border-radius:var(--radius);
+  font-size:13px;color:var(--txt);background:var(--bg3);font-family:inherit;
+  font-style:italic;text-align:center;outline:none;margin:12px 0}
+.motto-input:focus{border-color:var(--accent)}
+
 /* scrollbar */
 ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 </style>
 </head>
 <body>
+
+<!-- intro modal -->
+<div class="modal-bg" id="intro-modal-bg">
+<div class="intro-modal" onclick="event.stopPropagation()">
+  <div class="intro-header">
+    <span class="intro-icon">📖</span>
+    <span class="intro-main-title">이게 뭐임?</span>
+  </div>
+  <div class="intro-items">
+    <div class="intro-item">
+      <span class="intro-item-icon">📝</span>
+      <div class="intro-item-text"><strong>목표/해야할 일 기록</strong>공부할 때 해야 할 일을 적고, 마무리하면 체크하면 됨.</div>
+    </div>
+    <div class="intro-item">
+      <span class="intro-item-icon">⭐</span>
+      <div class="intro-item-text"><strong>경험치 &amp; 레벨업</strong>퀘스트를 완료할수록 경험치가 쌓이고 레벨업 가능.</div>
+    </div>
+    <div class="intro-item">
+      <span class="intro-item-icon">🪙</span>
+      <div class="intro-item-text"><strong>코인 &amp; 스킨</strong>레벨업 시 코인 제공, 코인으로 아바타 스킨 구매 가능.</div>
+    </div>
+    <div class="intro-item">
+      <span class="intro-item-icon">📅</span>
+      <div class="intro-item-text"><strong>달력으로 기록 확인</strong>날짜별로 완료한 퀘스트 기록을 달력에서 확인 가능.</div>
+    </div>
+  </div>
+  <button class="btn-intro-ok" onclick="closeIntroModal()">이해했어요 👍</button>
+</div>
+</div>
+
+<!-- motto edit modal -->
+<div class="modal-bg" id="motto-modal-bg" onclick="closeMottoModal()">
+<div class="motto-modal" onclick="event.stopPropagation()">
+  <div style="font-size:24px;margin-bottom:4px">✍️</div>
+  <div style="font-size:16px;font-weight:700;color:var(--txt);margin-bottom:4px">나만의 명언</div>
+  <div style="font-size:12px;color:var(--txt2);margin-bottom:2px">짧은 한마디를 남겨봐</div>
+  <input class="motto-input" id="motto-input" type="text" maxlength="40" placeholder="예) 오늘도 한 걸음씩!">
+  <div class="name-modal-btns">
+    <button class="btn-cancel" onclick="closeMottoModal()">취소</button>
+    <button class="btn-confirm-name" onclick="saveMotto()">저장</button>
+  </div>
+</div>
+</div>
 
 <!-- toast -->
 <div class="toast" id="toast"><span class="toast-icon" id="toast-icon"></span><span id="toast-msg"></span></div>
@@ -355,6 +438,12 @@ body::before{
         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" fill="var(--bg)" font-size="11" font-weight="700">₩</text></svg>
         <span id="coins-hdr">0</span> 코인
       </div>
+    </div>
+    <div class="motto-wrap">
+      <span class="motto-text" id="motto-text" onclick="openMottoModal()" title="클릭해서 명언 수정">✨ 오늘도 한 걸음씩!</span>
+      <button class="edit-motto-btn" onclick="openMottoModal()" title="명언 수정">
+        <svg width="11" height="11" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
     </div>
     <div class="xp-wrap">
       <div class="xp-track"><div class="xp-fill" id="xp-fill" style="width:0%"></div></div>
@@ -494,7 +583,40 @@ function init() {
   renderShop();
   document.getElementById('q-input').addEventListener('keydown', e => { if (e.key === 'Enter') addQuest(); });
   document.getElementById('name-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveName(); });
+  document.getElementById('motto-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveMotto(); });
   updatePastBanner();
+  // 명언 적용
+  const motto = S.motto || '✨ 오늘도 한 걸음씩!';
+  document.getElementById('motto-text').textContent = motto;
+  // 최초 방문 안내
+  if (!localStorage.getItem('sq_intro_seen')) {
+    document.getElementById('intro-modal-bg').classList.add('show');
+  }
+}
+
+// ─── intro modal ───
+function closeIntroModal() {
+  document.getElementById('intro-modal-bg').classList.remove('show');
+  localStorage.setItem('sq_intro_seen', '1');
+}
+
+// ─── motto modal ───
+function openMottoModal() {
+  document.getElementById('motto-input').value = S.motto || '';
+  document.getElementById('motto-modal-bg').classList.add('show');
+  setTimeout(() => document.getElementById('motto-input').focus(), 100);
+}
+function closeMottoModal() {
+  document.getElementById('motto-modal-bg').classList.remove('show');
+}
+function saveMotto() {
+  const val = document.getElementById('motto-input').value.trim();
+  if (!val) return;
+  S.motto = val;
+  LS.set('sq_state', S);
+  document.getElementById('motto-text').textContent = val;
+  closeMottoModal();
+  toast('✍️', '명언이 저장됐어요!');
 }
 
 // ─── day navigation ───
@@ -536,6 +658,7 @@ function updateStatBar() {
   const skin = SKINS.find(s => s.id === S.equippedSkin) || SKINS[0];
   document.getElementById('avatar').textContent = skin.emoji;
   if (S.playerName) document.getElementById('player-name').textContent = S.playerName;
+  if (S.motto) document.getElementById('motto-text').textContent = S.motto;
 }
 
 // ─── date string ───
