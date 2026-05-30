@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Study Quest — 공부 플래너</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ─── reset & base ─── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f6fa;
+  --bg2:#ffffff;
+  --bg3:#f0f1f7;
+  --border:#dde1f0;
+  --border2:#c4cae0;
+  --accent:#5b8dee;
+  --accent2:#7c5ce8;
+  --gold:#e6a817;
+  --gold2:#c8860a;
+  --green:#1aaa57;
+  --red:#e74c3c;
+  --txt:#1a1d2e;
+  --txt2:#5a6080;
+  --txt3:#9aa0bc;
+  --card-radius:14px;
+  --radius:8px;
+  --easy:#1aaa57;
+  --normal:#2980b9;
+  --hard:#8e44ad;
+}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif;font-size:14px;line-height:1.6}
+
+/* ─── subtle bg ─── */
+body::before{
+  content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse at 20% 50%,rgba(91,141,238,.04) 0%,transparent 60%),
+             radial-gradient(ellipse at 80% 20%,rgba(124,92,232,.04) 0%,transparent 60%);
+  pointer-events:none;z-index:0;
+}
+
+/* ─── layout ─── */
+.app{max-width:780px;margin:0 auto;padding:20px 16px 60px;position:relative;z-index:1}
+
+/* ─── header ─── */
+.header{display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:18px 20px;
+  background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-radius);
+  position:relative;overflow:hidden}
+.header::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--accent),var(--accent2),var(--gold));
+}
+.avatar-wrap{position:relative;flex-shrink:0}
+.avatar{width:56px;height:56px;border-radius:50%;background:var(--bg3);border:2px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;font-size:26px;
+  transition:transform .2s;cursor:pointer}
+.avatar:hover{transform:scale(1.08)}
+.lv-badge{position:absolute;bottom:-4px;right:-4px;background:var(--accent);color:#fff;
+  font-size:10px;font-weight:700;border-radius:20px;padding:1px 6px;border:2px solid var(--bg2)}
+.header-info{flex:1;min-width:0}
+.header-top{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.player-name{font-size:16px;font-weight:700;color:var(--txt)}
+.coins-badge{display:flex;align-items:center;gap:4px;background:rgba(200,134,10,.1);
+  border:1px solid rgba(200,134,10,.3);border-radius:20px;padding:2px 10px;
+  font-size:12px;font-weight:700;color:var(--gold2)}
+.xp-wrap{display:flex;align-items:center;gap:8px}
+.xp-track{flex:1;height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;
+  border:1px solid var(--border)}
+.xp-fill{height:100%;border-radius:4px;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  transition:width .5s cubic-bezier(.4,0,.2,1)}
+.xp-label{font-size:11px;color:var(--txt2);white-space:nowrap;min-width:80px;text-align:right}
+
+/* ─── tabs ─── */
+.tabs{display:flex;gap:4px;margin-bottom:16px;background:var(--bg2);
+  border:1px solid var(--border);border-radius:var(--card-radius);padding:4px}
+.tab{flex:1;padding:9px 8px;text-align:center;cursor:pointer;
+  border-radius:10px;font-size:13px;font-weight:500;color:var(--txt2);
+  border:none;background:none;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:5px}
+.tab svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;flex-shrink:0}
+.tab.active{background:var(--bg3);color:var(--txt);box-shadow:inset 0 0 0 1px var(--border2)}
+.tab:hover:not(.active){color:var(--txt);background:rgba(255,255,255,.04)}
+
+/* ─── panel ─── */
+.panel{display:none;flex-direction:column;gap:12px;animation:fadeIn .2s ease}
+.panel.active{display:flex}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ─── date row ─── */
+.date-row{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius)}
+.date-str{font-size:13px;font-weight:500;color:var(--txt)}
+.progress-str{font-size:12px;color:var(--txt2)}
+
+/* ─── add form ─── */
+.add-form{display:flex;gap:8px;align-items:stretch}
+.add-input{flex:1;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--radius);font-size:13px;color:var(--txt);font-family:inherit;outline:none;
+  transition:border-color .2s}
+.add-input::placeholder{color:var(--txt3)}
+.add-input:focus{border-color:var(--accent)}
+.diff-sel{padding:0 10px;background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--radius);font-size:12px;color:var(--txt2);font-family:inherit;cursor:pointer;outline:none}
+.diff-sel:focus{border-color:var(--accent)}
+.btn-add{padding:10px 16px;background:var(--accent);border:none;border-radius:var(--radius);
+  color:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;
+  font-family:inherit;transition:all .2s;display:flex;align-items:center;gap:5px}
+.btn-add:hover{background:#4a7ddc;transform:translateY(-1px)}
+.btn-add:active{transform:none}
+
+/* ─── quest list ─── */
+.quest-list{display:flex;flex-direction:column;gap:8px}
+.empty-state{text-align:center;padding:32px;color:var(--txt3);font-size:13px;
+  background:var(--bg2);border:1px dashed var(--border);border-radius:var(--card-radius)}
+.empty-icon{font-size:36px;margin-bottom:8px}
+
+.quest-item{display:flex;align-items:center;gap:10px;padding:12px 14px;
+  background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-radius);
+  cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.quest-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
+.quest-item.diff-easy::before{background:var(--easy)}
+.quest-item.diff-normal::before{background:var(--normal)}
+.quest-item.diff-hard::before{background:var(--hard)}
+.quest-item:hover{border-color:var(--border2);transform:translateX(2px)}
+.quest-item.done{opacity:.5}
+.quest-item.done:hover{opacity:.65}
+
+.check-circle{width:22px;height:22px;border-radius:50%;border:2px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .25s}
+.check-circle.checked{background:var(--green);border-color:var(--green)}
+.check-icon{display:none;color:#fff}
+.check-circle.checked .check-icon{display:block}
+.check-svg{width:12px;height:12px;stroke:#fff;fill:none;stroke-width:2.5}
+
+.quest-text{flex:1;font-size:13px;color:var(--txt);transition:all .2s}
+.quest-item.done .quest-text{text-decoration:line-through;color:var(--txt3)}
+
+.diff-pill{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;flex-shrink:0}
+.pill-easy{background:rgba(26,170,87,.12);color:#1aaa57;border:1px solid rgba(26,170,87,.25)}
+.pill-normal{background:rgba(41,128,185,.12);color:#2980b9;border:1px solid rgba(41,128,185,.25)}
+.pill-hard{background:rgba(142,68,173,.12);color:#8e44ad;border:1px solid rgba(142,68,173,.25)}
+
+.xp-pill{font-size:10px;font-weight:700;color:var(--accent);background:rgba(91,141,238,.1);
+  border:1px solid rgba(91,141,238,.2);border-radius:20px;padding:2px 8px;flex-shrink:0}
+
+.del-btn{width:22px;height:22px;border:none;background:none;cursor:pointer;
+  color:var(--txt3);border-radius:4px;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;transition:all .15s}
+.del-btn:hover{background:rgba(231,76,60,.15);color:var(--red)}
+.del-svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2}
+
+/* ─── calendar ─── */
+.cal-nav{display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-radius)}
+.cal-title{font-size:15px;font-weight:700}
+.cal-arrow{background:none;border:1px solid var(--border);border-radius:var(--radius);
+  padding:5px 10px;cursor:pointer;color:var(--txt2);font-size:14px;transition:all .15s}
+.cal-arrow:hover{border-color:var(--border2);color:var(--txt)}
+.dow-row{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
+.dow-cell{text-align:center;font-size:11px;color:var(--txt3);padding:4px 0;font-weight:500}
+.dow-cell:first-child{color:#e74c3c}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;
+  background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-radius);padding:10px}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border-radius:8px;cursor:pointer;font-size:12px;color:var(--txt2);position:relative;
+  transition:all .15s;border:1px solid transparent;gap:3px}
+.cal-day:hover{background:var(--bg3);border-color:var(--border);color:var(--txt)}
+.cal-day.today{background:rgba(91,141,238,.15);border-color:rgba(91,141,238,.4);color:var(--accent);font-weight:700}
+.cal-day.empty{opacity:0;pointer-events:none}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--accent)}
+.dot.full{background:var(--green)}
+.cal-day.selected{background:var(--bg3);border-color:var(--border2)}
+
+.cal-popup{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--card-radius);
+  padding:16px;display:none;animation:fadeIn .2s ease}
+.cal-popup.show{display:block}
+.popup-title{font-size:13px;font-weight:700;margin-bottom:10px;color:var(--txt)}
+.popup-stat{display:flex;gap:10px;margin-bottom:10px}
+.stat-chip{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);
+  padding:6px 12px;text-align:center;flex:1}
+.stat-num{font-size:18px;font-weight:700;color:var(--accent)}
+.stat-lbl{font-size:10px;color:var(--txt3)}
+.popup-quest{display:flex;align-items:center;gap:7px;padding:7px 0;
+  border-bottom:1px solid var(--border);font-size:12px;color:var(--txt2)}
+.popup-quest:last-child{border-bottom:none}
+.popup-quest.done{color:var(--txt3);text-decoration:line-through}
+.pq-icon{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0}
+.pq-icon.done{stroke:var(--green)}
+
+/* ─── shop ─── */
+.shop-header{display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-radius)}
+.shop-title{font-size:15px;font-weight:700}
+.shop-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:480px){.shop-grid{grid-template-columns:repeat(2,1fr)}}
+.skin-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-radius);
+  padding:16px 10px;text-align:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.skin-card::after{content:'';position:absolute;inset:0;opacity:0;transition:opacity .2s;
+  background:linear-gradient(135deg,rgba(91,141,238,.1),rgba(124,92,232,.1))}
+.skin-card:hover{border-color:var(--border2);transform:translateY(-2px)}
+.skin-card:hover::after{opacity:1}
+.skin-card.owned{border-color:rgba(26,170,87,.4);background:rgba(26,170,87,.04)}
+.skin-card.equipped{border-color:rgba(91,141,238,.5);background:rgba(91,141,238,.06);
+  box-shadow:0 0 16px rgba(91,141,238,.1)}
+.skin-emoji{font-size:34px;margin-bottom:8px;display:block}
+.skin-name{font-size:12px;font-weight:700;color:var(--txt);margin-bottom:4px}
+.skin-price{font-size:11px;color:var(--gold2);display:flex;align-items:center;justify-content:center;gap:3px}
+.skin-price svg{width:12px;height:12px;fill:var(--gold2)}
+.skin-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px}
+.badge-owned{background:rgba(26,170,87,.12);color:#1aaa57}
+.badge-equipped{background:rgba(91,141,238,.2);color:var(--accent)}
+.skin-locked{position:absolute;top:8px;right:8px;font-size:11px;color:var(--txt3)}
+
+/* ─── toast ─── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:#1a1d2e;border:1px solid #2a2f4a;border-radius:var(--card-radius);
+  padding:12px 20px;font-size:13px;font-weight:500;color:#e8ecf4;
+  box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:999;transition:transform .3s cubic-bezier(.4,0,.2,1),opacity .3s;
+  white-space:nowrap;display:flex;align-items:center;gap:8px;opacity:0}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.toast-icon{font-size:18px}
+
+/* ─── levelup modal ─── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:900;
+  display:none;align-items:center;justify-content:center}
+.modal-bg.show{display:flex}
+.modal{background:#ffffff;border:1px solid var(--border2);border-radius:20px;
+  padding:32px 40px;text-align:center;animation:popIn .35s cubic-bezier(.34,1.56,.64,1);max-width:320px;width:90%;
+  position:relative;overflow:hidden}
+.modal::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--accent),var(--accent2),var(--gold))}
+@keyframes popIn{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+.modal-emoji{font-size:56px;margin-bottom:12px;animation:bounce 1s ease infinite alternate}
+@keyframes bounce{from{transform:translateY(0)}to{transform:translateY(-8px)}}
+.modal-title{font-size:22px;font-weight:700;color:var(--txt);margin-bottom:6px}
+.modal-sub{font-size:13px;color:var(--txt2);margin-bottom:20px}
+.modal-coin{display:flex;align-items:center;justify-content:center;gap:6px;
+  background:rgba(200,134,10,.08);border:1px solid rgba(200,134,10,.2);border-radius:var(--radius);
+  padding:10px 20px;font-size:15px;font-weight:700;color:var(--gold2);margin-bottom:20px}
+.btn-close{padding:10px 28px;background:var(--accent);border:none;border-radius:var(--radius);
+  color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s}
+.btn-close:hover{background:#4a7ddc;transform:translateY(-1px)}
+
+/* scrollbar */
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- toast -->
+<div class="toast" id="toast"><span class="toast-icon" id="toast-icon"></span><span id="toast-msg"></span></div>
+
+<!-- levelup modal -->
+<div class="modal-bg" id="modal-bg" onclick="closeModal()">
+<div class="modal" onclick="event.stopPropagation()">
+  <div class="modal-emoji">⚔️</div>
+  <div class="modal-title" id="modal-title">레벨업!</div>
+  <div class="modal-sub" id="modal-sub">축하합니다!</div>
+  <div class="modal-coin" id="modal-coin">🪙 +30 코인 획득!</div>
+  <button class="btn-close" onclick="closeModal()">계속하기</button>
+</div>
+</div>
+
+<div class="app">
+
+<!-- header -->
+<div class="header">
+  <div class="avatar-wrap">
+    <div class="avatar" id="avatar" title="스킨 상점에서 변경">🧑‍💻</div>
+    <div class="lv-badge" id="lv-badge">Lv.1</div>
+  </div>
+  <div class="header-info">
+    <div class="header-top">
+      <span class="player-name" id="player-name">수민</span>
+      <div class="coins-badge">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" fill="var(--bg)" font-size="11" font-weight="700">₩</text></svg>
+        <span id="coins-hdr">0</span> 코인
+      </div>
+    </div>
+    <div class="xp-wrap">
+      <div class="xp-track"><div class="xp-fill" id="xp-fill" style="width:0%"></div></div>
+      <div class="xp-label" id="xp-label">0 / 100 XP</div>
+    </div>
+  </div>
+</div>
+
+<!-- tabs -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('today',this)">
+    <svg viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>오늘의 퀘스트
+  </button>
+  <button class="tab" onclick="switchTab('calendar',this)">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>달력
+  </button>
+  <button class="tab" onclick="switchTab('shop',this)">
+    <svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>스킨 상점
+  </button>
+</div>
+
+<!-- ═══ TODAY ═══ -->
+<div class="panel active" id="panel-today">
+  <div class="date-row">
+    <span class="date-str" id="date-str"></span>
+    <span class="progress-str" id="progress-str">0 / 0 완료</span>
+  </div>
+  <div class="add-form">
+    <input class="add-input" id="q-input" type="text" placeholder="새 퀘스트를 입력하세요..." maxlength="50">
+    <select class="diff-sel" id="diff-sel">
+      <option value="easy">쉬움 +15XP</option>
+      <option value="normal" selected>보통 +30XP</option>
+      <option value="hard">어려움 +60XP</option>
+    </select>
+    <button class="btn-add" onclick="addQuest()">
+      <svg width="14" height="14" viewBox="0 0 24 24" stroke="#fff" fill="none" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>추가
+    </button>
+  </div>
+  <div class="quest-list" id="quest-list">
+    <div class="empty-state"><div class="empty-icon">📜</div>퀘스트가 없습니다.<br>목표를 추가하고 경험치를 획득하세요!</div>
+  </div>
+</div>
+
+<!-- ═══ CALENDAR ═══ -->
+<div class="panel" id="panel-calendar">
+  <div class="cal-nav">
+    <button class="cal-arrow" onclick="changeMonth(-1)">◀</button>
+    <span class="cal-title" id="cal-title"></span>
+    <button class="cal-arrow" onclick="changeMonth(1)">▶</button>
+  </div>
+  <div class="dow-row">
+    <div class="dow-cell">일</div><div class="dow-cell">월</div><div class="dow-cell">화</div>
+    <div class="dow-cell">수</div><div class="dow-cell">목</div><div class="dow-cell">금</div><div class="dow-cell">토</div>
+  </div>
+  <div class="cal-grid" id="cal-grid"></div>
+  <div class="cal-popup" id="cal-popup"></div>
+</div>
+
+<!-- ═══ SHOP ═══ -->
+<div class="panel" id="panel-shop">
+  <div class="shop-header">
+    <span class="shop-title">🏪 스킨 상점</span>
+    <div class="coins-badge" style="font-size:13px">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" fill="var(--bg)" font-size="11" font-weight="700">₩</text></svg>
+      <span id="coins-shop">0</span> 코인
+    </div>
+  </div>
+  <div class="shop-grid" id="shop-grid"></div>
+</div>
+
+</div><!-- /app -->
+
+<script>
+// ─── constants ───
+const SKINS = [
+  {id:'s0', emoji:'🧑‍💻', name:'기본 해커', price:0},
+  {id:'s1', emoji:'🧙‍♂️', name:'공부 마법사', price:50},
+  {id:'s2', emoji:'🦊', name:'여우 학자', price:80},
+  {id:'s3', emoji:'🐉', name:'드래곤 학생', price:120},
+  {id:'s4', emoji:'🧑‍🚀', name:'우주 공학도', price:150},
+  {id:'s5', emoji:'🦁', name:'사자 대왕', price:200},
+  {id:'s6', emoji:'👑', name:'황금 제왕', price:350},
+  {id:'s7', emoji:'🤖', name:'AI 로봇', price:250},
+  {id:'s8', emoji:'🔮', name:'예언자', price:180},
+];
+const DIFF_XP = {easy:15, normal:30, hard:60};
+const XP_BASE = 100; // xp needed = level * XP_BASE
+
+// ─── state ───
+let S = {level:1, xp:0, coins:0, equippedSkin:'s0', ownedSkins:['s0']};
+let todayQuests = [];
+let calState = {y: new Date().getFullYear(), m: new Date().getMonth()};
+let selCalDay = null;
+
+// ─── storage helpers ───
+const LS = {
+  get: (k, def) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } },
+  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+
+function todayKey() {
+  const d = new Date();
+  return `sq_q_${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function pad(n) { return String(n).padStart(2,'0'); }
+function dateKey(y,m,d) { return `sq_q_${y}-${pad(m+1)}-${pad(d)}`; }
+
+// ─── init ───
+function init() {
+  S = LS.get('sq_state', S);
+  todayQuests = LS.get(todayKey(), []);
+  updateStatBar();
+  renderQuests();
+  updateDateStr();
+  renderCalendar();
+  renderShop();
+
+  document.getElementById('q-input').addEventListener('keydown', e => { if (e.key === 'Enter') addQuest(); });
+}
+
+// ─── stat bar ───
+function updateStatBar() {
+  const maxXp = S.level * XP_BASE;
+  const pct = Math.min(100, Math.round(S.xp / maxXp * 100));
+  document.getElementById('xp-fill').style.width = pct + '%';
+  document.getElementById('xp-label').textContent = `${S.xp} / ${maxXp} XP`;
+  document.getElementById('lv-badge').textContent = 'Lv.' + S.level;
+  document.getElementById('coins-hdr').textContent = S.coins;
+  document.getElementById('coins-shop').textContent = S.coins;
+  const skin = SKINS.find(s => s.id === S.equippedSkin) || SKINS[0];
+  document.getElementById('avatar').textContent = skin.emoji;
+}
+
+// ─── date string ───
+function updateDateStr() {
+  const d = new Date();
+  const days = ['일','월','화','수','목','금','토'];
+  document.getElementById('date-str').textContent =
+    `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+  const done = todayQuests.filter(q=>q.done).length;
+  document.getElementById('progress-str').textContent = `${done} / ${todayQuests.length} 완료`;
+}
+
+// ─── quests ───
+function renderQuests() {
+  const el = document.getElementById('quest-list');
+  if (!todayQuests.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📜</div>퀘스트가 없습니다.<br>목표를 추가하고 경험치를 획득하세요!</div>`;
+    updateDateStr(); return;
+  }
+  el.innerHTML = todayQuests.map((q,i) => `
+    <div class="quest-item diff-${q.diff}${q.done?' done':''}" onclick="toggleQuest(${i})">
+      <div class="check-circle${q.done?' checked':''}">
+        <span class="check-icon">
+          <svg class="check-svg" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        </span>
+      </div>
+      <span class="quest-text">${escHtml(q.text)}</span>
+      <span class="diff-pill pill-${q.diff}">${q.diff==='easy'?'쉬움':q.diff==='hard'?'어려움':'보통'}</span>
+      <span class="xp-pill">+${DIFF_XP[q.diff]}XP</span>
+      <button class="del-btn" onclick="event.stopPropagation();deleteQuest(${i})" title="삭제">
+        <svg class="del-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  `).join('');
+  updateDateStr();
+}
+
+function addQuest() {
+  const inp = document.getElementById('q-input');
+  const text = inp.value.trim();
+  if (!text) return;
+  const diff = document.getElementById('diff-sel').value;
+  todayQuests.push({text, diff, done: false});
+  inp.value = '';
+  LS.set(todayKey(), todayQuests);
+  renderQuests();
+  toast('📌', '퀘스트 추가!');
+}
+
+function toggleQuest(i) {
+  const q = todayQuests[i];
+  if (q.done) {
+    q.done = false;
+    S.xp = Math.max(0, S.xp - DIFF_XP[q.diff]);
+  } else {
+    q.done = true;
+    gainXp(DIFF_XP[q.diff], q.diff);
+  }
+  LS.set(todayKey(), todayQuests);
+  LS.set('sq_state', S);
+  renderQuests();
+  updateStatBar();
+  // check all done
+  if (todayQuests.length && todayQuests.every(q=>q.done)) {
+    setTimeout(()=>toast('🏆','모든 퀘스트 완료!'), 400);
+  }
+}
+
+function deleteQuest(i) {
+  if (todayQuests[i].done) S.xp = Math.max(0, S.xp - DIFF_XP[todayQuests[i].diff]);
+  todayQuests.splice(i, 1);
+  LS.set(todayKey(), todayQuests);
+  LS.set('sq_state', S);
+  renderQuests();
+  updateStatBar();
+}
+
+function gainXp(amount, diff) {
+  S.xp += amount;
+  const msgs = {easy:'쉬운 퀘스트 완료!', normal:'퀘스트 완료!', hard:'어려운 퀘스트 완료!'};
+  toast('⭐', `+${amount}XP — ${msgs[diff]||'완료!'}`);
+  const maxXp = S.level * XP_BASE;
+  if (S.xp >= maxXp) {
+    S.xp -= maxXp;
+    S.level++;
+    const coinReward = S.level * 5 + 10;
+    S.coins += coinReward;
+    LS.set('sq_state', S);
+    updateStatBar();
+    setTimeout(()=>showLevelUp(coinReward), 600);
+  }
+}
+
+// ─── levelup modal ───
+function showLevelUp(coins) {
+  document.getElementById('modal-title').textContent = `🎊 레벨 ${S.level} 달성!`;
+  document.getElementById('modal-sub').textContent = `축하합니다! 한 단계 성장했습니다.`;
+  document.getElementById('modal-coin').textContent = `🪙 +${coins} 코인 획득!`;
+  document.getElementById('modal-bg').classList.add('show');
+}
+function closeModal() { document.getElementById('modal-bg').classList.remove('show'); }
+
+// ─── toast ───
+let toastTimer;
+function toast(icon, msg) {
+  clearTimeout(toastTimer);
+  document.getElementById('toast-icon').textContent = icon;
+  document.getElementById('toast-msg').textContent = msg;
+  const el = document.getElementById('toast');
+  el.classList.add('show');
+  toastTimer = setTimeout(()=>el.classList.remove('show'), 2500);
+}
+
+// ─── tabs ───
+function switchTab(name, btn) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  btn.classList.add('active');
+  if (name==='calendar') renderCalendar();
+  if (name==='shop') { renderShop(); document.getElementById('coins-shop').textContent = S.coins; }
+}
+
+// ─── calendar ───
+function changeMonth(d) {
+  calState.m += d;
+  if (calState.m > 11) { calState.m=0; calState.y++; }
+  else if (calState.m < 0) { calState.m=11; calState.y--; }
+  selCalDay = null;
+  document.getElementById('cal-popup').classList.remove('show');
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  document.getElementById('cal-title').textContent = `${calState.y}년 ${months[calState.m]}`;
+  const first = new Date(calState.y, calState.m, 1).getDay();
+  const daysInMonth = new Date(calState.y, calState.m+1, 0).getDate();
+  const today = new Date();
+  let html = '';
+  for (let i=0;i<first;i++) html += `<div class="cal-day empty"></div>`;
+  for (let d=1;d<=daysInMonth;d++) {
+    const key = dateKey(calState.y, calState.m, d);
+    const qs = LS.get(key, []);
+    const isToday = calState.y===today.getFullYear()&&calState.m===today.getMonth()&&d===today.getDate();
+    const hasDot = qs.length > 0;
+    const fullDone = hasDot && qs.every(q=>q.done);
+    const isSel = selCalDay === d;
+    html += `<div class="cal-day${isToday?' today':''}${isSel?' selected':''}" onclick="calClickDay(${d})">
+      <span>${d}</span>
+      ${hasDot?`<div class="dot${fullDone?' full':''}"></div>`:''}
+    </div>`;
+  }
+  document.getElementById('cal-grid').innerHTML = html;
+}
+
+function calClickDay(d) {
+  const key = dateKey(calState.y, calState.m, d);
+  const qs = LS.get(key, []);
+  const popup = document.getElementById('cal-popup');
+  if (selCalDay === d) {
+    selCalDay = null;
+    popup.classList.remove('show');
+    renderCalendar();
+    return;
+  }
+  selCalDay = d;
+  renderCalendar();
+  const months=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  const done = qs.filter(q=>q.done).length;
+  let inner = `<div class="popup-title">${calState.y}년 ${months[calState.m]} ${d}일</div>
+  <div class="popup-stat">
+    <div class="stat-chip"><div class="stat-num">${done}</div><div class="stat-lbl">완료</div></div>
+    <div class="stat-chip"><div class="stat-num">${qs.length}</div><div class="stat-lbl">전체</div></div>
+    <div class="stat-chip"><div class="stat-num">${qs.reduce((a,q)=>q.done?a+DIFF_XP[q.diff]:a,0)}</div><div class="stat-lbl">획득 XP</div></div>
+  </div>`;
+  if (!qs.length) {
+    inner += `<div style="font-size:12px;color:var(--txt3);text-align:center;padding:8px">기록된 퀘스트가 없습니다.</div>`;
+  } else {
+    inner += qs.map(q=>`
+      <div class="popup-quest${q.done?' done':''}">
+        <svg class="pq-icon${q.done?' done':''}" viewBox="0 0 24 24">
+          ${q.done?'<polyline points="20 6 9 17 4 12"/>':'<circle cx="12" cy="12" r="9"/>'}
+        </svg>
+        ${escHtml(q.text)}
+        <span style="margin-left:auto;font-size:10px;color:var(--txt3)">${DIFF_XP[q.diff]}XP</span>
+      </div>
+    `).join('');
+  }
+  popup.innerHTML = inner;
+  popup.classList.add('show');
+}
+
+// ─── shop ───
+function renderShop() {
+  document.getElementById('coins-shop').textContent = S.coins;
+  document.getElementById('shop-grid').innerHTML = SKINS.map(s => {
+    const owned = S.ownedSkins.includes(s.id);
+    const equipped = S.equippedSkin === s.id;
+    let priceHtml;
+    if (equipped) priceHtml = `<span class="skin-badge badge-equipped">✓ 장착 중</span>`;
+    else if (owned) priceHtml = `<span class="skin-badge badge-owned">보유 중</span>`;
+    else priceHtml = `<div class="skin-price"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>${s.price} 코인</div>`;
+    return `<div class="skin-card${equipped?' equipped':owned?' owned':''}" onclick="shopAct('${s.id}',${s.price})">
+      ${!owned&&s.price>0?`<span class="skin-locked">🔒</span>`:''}
+      <span class="skin-emoji">${s.emoji}</span>
+      <div class="skin-name">${s.name}</div>
+      ${priceHtml}
+    </div>`;
+  }).join('');
+}
+
+function shopAct(id, price) {
+  const owned = S.ownedSkins.includes(id);
+  if (!owned) {
+    if (S.coins < price) { toast('❌','코인이 부족합니다!'); return; }
+    S.coins -= price;
+    S.ownedSkins.push(id);
+    toast('✨', `${SKINS.find(s=>s.id===id).name} 스킨 구매!`);
+  }
+  S.equippedSkin = id;
+  LS.set('sq_state', S);
+  updateStatBar();
+  renderShop();
+}
+
+// ─── util ───
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── run ───
+init();
+</script>
+</body>
+</html>
