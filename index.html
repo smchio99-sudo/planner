@@ -90,8 +90,12 @@ body::before{
 /* ─── date row ─── */
 .date-row{display:flex;align-items:center;justify-content:space-between;
   padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius)}
-.date-str{font-size:13px;font-weight:500;color:var(--txt)}
-.progress-str{font-size:12px;color:var(--txt2)}
+.date-str{font-size:13px;font-weight:500;color:var(--txt);text-align:center}
+.progress-str{font-size:12px;color:var(--txt2);text-align:center}
+.day-nav-btn{background:none;border:1px solid var(--border);border-radius:var(--radius);
+  padding:5px 11px;cursor:pointer;color:var(--txt2);font-size:13px;transition:all .15s;flex-shrink:0}
+.day-nav-btn:hover{border-color:var(--border2);color:var(--txt)}
+.day-nav-btn:disabled{opacity:.3;cursor:default}
 
 /* ─── add form ─── */
 .add-form{display:flex;gap:8px;align-items:stretch}
@@ -242,6 +246,51 @@ body::before{
   color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s}
 .btn-close:hover{background:#4a7ddc;transform:translateY(-1px)}
 
+/* ─── edit name btn ─── */
+.edit-name-btn{background:none;border:1px solid var(--border);border-radius:6px;
+  padding:3px 6px;cursor:pointer;color:var(--txt3);display:flex;align-items:center;
+  transition:all .15s;flex-shrink:0}
+.edit-name-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ─── name modal ─── */
+.name-modal{background:#ffffff;border:1px solid var(--border2);border-radius:20px;
+  padding:28px 32px;text-align:center;animation:popIn .3s cubic-bezier(.34,1.56,.64,1);
+  max-width:300px;width:90%;position:relative;overflow:hidden}
+.name-modal::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.name-modal-title{font-size:17px;font-weight:700;color:var(--txt);margin-bottom:6px}
+.name-modal-sub{font-size:12px;color:var(--txt2);margin-bottom:16px}
+.name-input{width:100%;padding:10px 14px;border:1px solid var(--border2);border-radius:var(--radius);
+  font-size:15px;font-weight:700;text-align:center;color:var(--txt);background:var(--bg3);
+  font-family:inherit;outline:none;margin-bottom:14px}
+.name-input:focus{border-color:var(--accent)}
+.name-modal-btns{display:flex;gap:8px}
+.btn-cancel{flex:1;padding:9px;border:1px solid var(--border2);border-radius:var(--radius);
+  background:none;color:var(--txt2);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .2s}
+.btn-cancel:hover{background:var(--bg3)}
+.btn-confirm-name{flex:1;padding:9px;border:none;border-radius:var(--radius);
+  background:var(--accent);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s}
+.btn-confirm-name:hover{background:#4a7ddc}
+
+/* ─── confirm modal (퀘스트 완료 확인) ─── */
+.confirm-modal{background:#ffffff;border:1px solid var(--border2);border-radius:20px;
+  padding:24px 28px;text-align:center;animation:popIn .3s cubic-bezier(.34,1.56,.64,1);
+  max-width:300px;width:90%;position:relative;overflow:hidden}
+.confirm-modal::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--green),var(--accent))}
+.confirm-emoji{font-size:36px;margin-bottom:8px}
+.confirm-title{font-size:15px;font-weight:700;color:var(--txt);margin-bottom:4px}
+.confirm-quest-name{font-size:13px;color:var(--accent);font-weight:500;
+  background:rgba(91,141,238,.08);border:1px solid rgba(91,141,238,.2);
+  border-radius:var(--radius);padding:7px 12px;margin:10px 0 16px;word-break:break-all}
+.confirm-btns{display:flex;gap:8px}
+.btn-confirm-yes{flex:1;padding:10px;border:none;border-radius:var(--radius);
+  background:var(--green);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s}
+.btn-confirm-yes:hover{background:#18995c}
+.btn-confirm-no{flex:1;padding:10px;border:1px solid var(--border2);border-radius:var(--radius);
+  background:none;color:var(--txt2);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .2s}
+.btn-confirm-no:hover{background:var(--bg3)}
+
 /* scrollbar */
 ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 </style>
@@ -250,6 +299,32 @@ body::before{
 
 <!-- toast -->
 <div class="toast" id="toast"><span class="toast-icon" id="toast-icon"></span><span id="toast-msg"></span></div>
+
+<!-- name edit modal -->
+<div class="modal-bg" id="name-modal-bg" onclick="closeNameModal()">
+<div class="name-modal" onclick="event.stopPropagation()">
+  <div class="name-modal-title">✏️ 이름 변경</div>
+  <div class="name-modal-sub">플레이어 이름을 입력하세요</div>
+  <input class="name-input" id="name-input" type="text" maxlength="10" placeholder="이름 입력...">
+  <div class="name-modal-btns">
+    <button class="btn-cancel" onclick="closeNameModal()">취소</button>
+    <button class="btn-confirm-name" onclick="saveName()">저장</button>
+  </div>
+</div>
+</div>
+
+<!-- quest confirm modal -->
+<div class="modal-bg" id="confirm-modal-bg">
+<div class="confirm-modal" onclick="event.stopPropagation()">
+  <div class="confirm-emoji" id="confirm-emoji">✅</div>
+  <div class="confirm-title" id="confirm-title">이 퀘스트를 완료하시겠습니까?</div>
+  <div class="confirm-quest-name" id="confirm-quest-name"></div>
+  <div class="confirm-btns">
+    <button class="btn-confirm-no" onclick="closeConfirmModal()">취소</button>
+    <button class="btn-confirm-yes" id="confirm-yes-btn" onclick="confirmQuestAction()">완료!</button>
+  </div>
+</div>
+</div>
 
 <!-- levelup modal -->
 <div class="modal-bg" id="modal-bg" onclick="closeModal()">
@@ -272,7 +347,10 @@ body::before{
   </div>
   <div class="header-info">
     <div class="header-top">
-      <span class="player-name" id="player-name">수민</span>
+      <span class="player-name" id="player-name">모험가</span>
+      <button class="edit-name-btn" onclick="openNameModal()" title="이름 변경">
+        <svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
       <div class="coins-badge">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" fill="var(--bg)" font-size="11" font-weight="700">₩</text></svg>
         <span id="coins-hdr">0</span> 코인
@@ -301,10 +379,18 @@ body::before{
 <!-- ═══ TODAY ═══ -->
 <div class="panel active" id="panel-today">
   <div class="date-row">
-    <span class="date-str" id="date-str"></span>
-    <span class="progress-str" id="progress-str">0 / 0 완료</span>
+    <button class="day-nav-btn" onclick="changeDay(-1)">&#9664;</button>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+      <span class="date-str" id="date-str"></span>
+      <span class="progress-str" id="progress-str">0 / 0 완료</span>
+    </div>
+    <button class="day-nav-btn" id="btn-next-day" onclick="changeDay(1)">&#9654;</button>
   </div>
-  <div class="add-form">
+  <div id="past-banner" style="display:none;align-items:center;justify-content:center;gap:8px;padding:8px 14px;background:rgba(240,180,41,.08);border:1px solid rgba(240,180,41,.25);border-radius:var(--radius);font-size:12px;color:#c8860a">
+    <span>&#128197; 과거 날짜 보기 모드 — 퀘스트 추가/삭제 불가</span>
+    <button onclick="goToday()" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit">오늘로</button>
+  </div>
+  <div class="add-form" id="add-form">
     <input class="add-input" id="q-input" type="text" placeholder="새 퀘스트를 입력하세요..." maxlength="50">
     <select class="diff-sel" id="diff-sel">
       <option value="easy">쉬움 +15XP</option>
@@ -370,6 +456,7 @@ let S = {level:1, xp:0, coins:0, equippedSkin:'s0', ownedSkins:['s0']};
 let todayQuests = [];
 let calState = {y: new Date().getFullYear(), m: new Date().getMonth()};
 let selCalDay = null;
+let viewDate = new Date(); // currently viewed date in TODAY tab
 
 // ─── storage helpers ───
 const LS = {
@@ -378,8 +465,17 @@ const LS = {
 };
 
 function todayKey() {
+  return dateKey(viewDate.getFullYear(), viewDate.getMonth(), viewDate.getDate());
+}
+function realTodayKey() {
   const d = new Date();
-  return `sq_q_${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  return dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+}
+function isViewingToday() {
+  const now = new Date();
+  return viewDate.getFullYear()===now.getFullYear() &&
+    viewDate.getMonth()===now.getMonth() &&
+    viewDate.getDate()===now.getDate();
 }
 function pad(n) { return String(n).padStart(2,'0'); }
 function dateKey(y,m,d) { return `sq_q_${y}-${pad(m+1)}-${pad(d)}`; }
@@ -387,14 +483,45 @@ function dateKey(y,m,d) { return `sq_q_${y}-${pad(m+1)}-${pad(d)}`; }
 // ─── init ───
 function init() {
   S = LS.get('sq_state', S);
+  if (!S.playerName) S.playerName = '모험가';
+  document.getElementById('player-name').textContent = S.playerName;
+  viewDate = new Date();
   todayQuests = LS.get(todayKey(), []);
   updateStatBar();
   renderQuests();
   updateDateStr();
   renderCalendar();
   renderShop();
-
   document.getElementById('q-input').addEventListener('keydown', e => { if (e.key === 'Enter') addQuest(); });
+  document.getElementById('name-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveName(); });
+  updatePastBanner();
+}
+
+// ─── day navigation ───
+function changeDay(delta) {
+  viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), viewDate.getDate() + delta);
+  todayQuests = LS.get(todayKey(), []);
+  renderQuests();
+  updateDateStr();
+  updatePastBanner();
+}
+function goToday() {
+  viewDate = new Date();
+  todayQuests = LS.get(todayKey(), []);
+  renderQuests();
+  updateDateStr();
+  updatePastBanner();
+}
+function updatePastBanner() {
+  const isPast = !isViewingToday();
+  const banner = document.getElementById('past-banner');
+  const form = document.getElementById('add-form');
+  const nextBtn = document.getElementById('btn-next-day');
+  banner.style.display = isPast ? 'flex' : 'none';
+  form.style.display = isPast ? 'none' : 'flex';
+  // 미래 이동 막기
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+  nextBtn.disabled = viewDate >= tomorrow;
 }
 
 // ─── stat bar ───
@@ -408,14 +535,16 @@ function updateStatBar() {
   document.getElementById('coins-shop').textContent = S.coins;
   const skin = SKINS.find(s => s.id === S.equippedSkin) || SKINS[0];
   document.getElementById('avatar').textContent = skin.emoji;
+  if (S.playerName) document.getElementById('player-name').textContent = S.playerName;
 }
 
 // ─── date string ───
 function updateDateStr() {
-  const d = new Date();
+  const d = viewDate;
   const days = ['일','월','화','수','목','금','토'];
+  const isToday = isViewingToday();
   document.getElementById('date-str').textContent =
-    `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+    `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})${isToday?' — 오늘':''}`;
   const done = todayQuests.filter(q=>q.done).length;
   document.getElementById('progress-str').textContent = `${done} / ${todayQuests.length} 완료`;
 }
@@ -423,12 +552,15 @@ function updateDateStr() {
 // ─── quests ───
 function renderQuests() {
   const el = document.getElementById('quest-list');
+  const past = !isViewingToday();
   if (!todayQuests.length) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📜</div>퀘스트가 없습니다.<br>목표를 추가하고 경험치를 획득하세요!</div>`;
+    el.innerHTML = past
+      ? `<div class="empty-state"><div class="empty-icon">📅</div>이 날의 퀘스트 기록이 없습니다.</div>`
+      : `<div class="empty-state"><div class="empty-icon">📜</div>퀘스트가 없습니다.<br>목표를 추가하고 경험치를 획득하세요!</div>`;
     updateDateStr(); return;
   }
   el.innerHTML = todayQuests.map((q,i) => `
-    <div class="quest-item diff-${q.diff}${q.done?' done':''}" onclick="toggleQuest(${i})">
+    <div class="quest-item diff-${q.diff}${q.done?' done':''}" onclick="${past?'':`toggleQuest(${i})`}">
       <div class="check-circle${q.done?' checked':''}">
         <span class="check-icon">
           <svg class="check-svg" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
@@ -437,15 +569,16 @@ function renderQuests() {
       <span class="quest-text">${escHtml(q.text)}</span>
       <span class="diff-pill pill-${q.diff}">${q.diff==='easy'?'쉬움':q.diff==='hard'?'어려움':'보통'}</span>
       <span class="xp-pill">+${DIFF_XP[q.diff]}XP</span>
-      <button class="del-btn" onclick="event.stopPropagation();deleteQuest(${i})" title="삭제">
+      ${past?'':`<button class="del-btn" onclick="event.stopPropagation();deleteQuest(${i})" title="삭제">
         <svg class="del-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
+      </button>`}
     </div>
   `).join('');
   updateDateStr();
 }
 
 function addQuest() {
+  if (!isViewingToday()) return;
   const inp = document.getElementById('q-input');
   const text = inp.value.trim();
   if (!text) return;
@@ -457,23 +590,48 @@ function addQuest() {
   toast('📌', '퀘스트 추가!');
 }
 
+let pendingQuestIdx = null;
+
 function toggleQuest(i) {
   const q = todayQuests[i];
   if (q.done) {
+    // 완료 취소는 바로 처리
     q.done = false;
     S.xp = Math.max(0, S.xp - DIFF_XP[q.diff]);
-  } else {
-    q.done = true;
-    gainXp(DIFF_XP[q.diff], q.diff);
+    LS.set(todayKey(), todayQuests);
+    LS.set('sq_state', S);
+    renderQuests();
+    updateStatBar();
+    return;
   }
+  // 완료 확인 모달
+  pendingQuestIdx = i;
+  document.getElementById('confirm-emoji').textContent = '✅';
+  document.getElementById('confirm-title').textContent = '이 퀘스트를 완료하시겠습니까?';
+  document.getElementById('confirm-quest-name').textContent = q.text;
+  document.getElementById('confirm-yes-btn').textContent = '완료!';
+  document.getElementById('confirm-yes-btn').style.background = 'var(--green)';
+  document.getElementById('confirm-modal-bg').classList.add('show');
+}
+
+function confirmQuestAction() {
+  if (pendingQuestIdx === null) return;
+  const q = todayQuests[pendingQuestIdx];
+  q.done = true;
+  gainXp(DIFF_XP[q.diff], q.diff);
   LS.set(todayKey(), todayQuests);
   LS.set('sq_state', S);
   renderQuests();
   updateStatBar();
-  // check all done
+  closeConfirmModal();
   if (todayQuests.length && todayQuests.every(q=>q.done)) {
     setTimeout(()=>toast('🏆','모든 퀘스트 완료!'), 400);
   }
+}
+
+function closeConfirmModal() {
+  document.getElementById('confirm-modal-bg').classList.remove('show');
+  pendingQuestIdx = null;
 }
 
 function deleteQuest(i) {
@@ -509,6 +667,25 @@ function showLevelUp(coins) {
   document.getElementById('modal-bg').classList.add('show');
 }
 function closeModal() { document.getElementById('modal-bg').classList.remove('show'); }
+
+// ─── name modal ───
+function openNameModal() {
+  document.getElementById('name-input').value = S.playerName || '';
+  document.getElementById('name-modal-bg').classList.add('show');
+  setTimeout(()=>document.getElementById('name-input').focus(), 100);
+}
+function closeNameModal() {
+  document.getElementById('name-modal-bg').classList.remove('show');
+}
+function saveName() {
+  const val = document.getElementById('name-input').value.trim();
+  if (!val) return;
+  S.playerName = val;
+  LS.set('sq_state', S);
+  document.getElementById('player-name').textContent = val;
+  closeNameModal();
+  toast('✏️', `이름이 "${val}"(으)로 변경됐어요!`);
+}
 
 // ─── toast ───
 let toastTimer;
