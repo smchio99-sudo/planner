@@ -30,7 +30,10 @@
   --normal:#2980b9;
   --hard:#8e44ad;
 }
-html,body{height:100%;background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif;font-size:14px;line-height:1.6}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif;font-size:14px;line-height:1.6;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+input,textarea{user-select:text;-webkit-user-select:text;-webkit-touch-callout:default}
+img,svg{user-drag:none;-webkit-user-drag:none}
 
 /* ─── subtle bg ─── */
 body::before{
@@ -440,6 +443,18 @@ body::before{
 </div>
 </div>
 
+<!-- daily XP limit modal -->
+<div class="modal-bg" id="xp-limit-modal-bg">
+<div class="confirm-modal" onclick="event.stopPropagation()">
+  <div class="confirm-emoji">⛔</div>
+  <div class="confirm-title">오늘 받을 수 있는 경험치를 모두 채웠어요</div>
+  <div class="confirm-quest-name" id="xp-limit-msg">하루에 최대 얻을 수 있는 경험치는 200XP입니다.</div>
+  <div class="confirm-btns">
+    <button class="btn-confirm-yes" onclick="closeXpLimitModal()">확인</button>
+  </div>
+</div>
+</div>
+
 <!-- levelup modal -->
 <div class="modal-bg" id="modal-bg" onclick="closeModal()">
 <div class="modal" onclick="event.stopPropagation()">
@@ -576,13 +591,14 @@ const SKINS = [
 ];
 const CHARACTER_SKINS = [
   {id:'default', name:'기본 용사', price:0, portrait:'assets/default-portrait.png', framePrefix:'battle-frame'},
-  {id:'minami', name:'하루카', price:200, portrait:'assets/minami-portrait.png', framePrefix:'minami-battle-frame'},
+  {id:'minami', name:'미나미', price:200, portrait:'assets/minami-portrait.png', framePrefix:'minami-battle-frame'},
   {id:'blue', name:'마법소녀 블루', price:200, portrait:'assets/blue-portrait.png', framePrefix:'blue-battle-frame'},
   {id:'pink', name:'핑크공주', price:200, portrait:'assets/pink-portrait.png', framePrefix:'pink-battle-frame'},
   {id:'dark', name:'어둠의 성준', price:200, portrait:'assets/dark-portrait.png', framePrefix:'dark-battle-frame'},
 ];
 const DIFF_XP = {easy:15, normal:30, hard:60};
 const XP_BASE = 100; // xp needed = level * XP_BASE
+const DAILY_XP_MAX = 200;
 
 // ─── state ───
 let S = {level:1, xp:0, coins:0, equippedSkin:'s0', ownedSkins:['s0'], equippedCharacterSkin:'default', ownedCharacterSkins:['default']};
@@ -596,6 +612,15 @@ const LS = {
   get: (k, def) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } },
   set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
+
+function lockBrowserGestures() {
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('dragstart', e => e.preventDefault());
+  document.addEventListener('selectstart', e => {
+    if (!e.target.closest('input, textarea')) e.preventDefault();
+  });
+  document.querySelectorAll('img').forEach(img => img.setAttribute('draggable', 'false'));
+}
 
 function todayKey() {
   return dateKey(viewDate.getFullYear(), viewDate.getMonth(), viewDate.getDate());
@@ -615,6 +640,7 @@ function dateKey(y,m,d) { return `sq_q_${y}-${pad(m+1)}-${pad(d)}`; }
 
 // ─── init ───
 function init() {
+  lockBrowserGestures();
   S = LS.get('sq_state', S);
   if (!S.ownedSkins) S.ownedSkins = ['s0'];
   if (!S.equippedSkin) S.equippedSkin = 's0';
@@ -769,6 +795,20 @@ function addQuest() {
 
 let pendingQuestIdx = null;
 
+function todayEarnedXp() {
+  return todayQuests.reduce((sum, q) => q.done ? sum + DIFF_XP[q.diff] : sum, 0);
+}
+
+function openXpLimitModal(current, amount) {
+  document.getElementById('xp-limit-msg').textContent =
+    `현재 ${current}XP를 획득했고, 이 퀘스트는 +${amount}XP라서 하루 최대 ${DAILY_XP_MAX}XP를 넘습니다.`;
+  document.getElementById('xp-limit-modal-bg').classList.add('show');
+}
+
+function closeXpLimitModal() {
+  document.getElementById('xp-limit-modal-bg').classList.remove('show');
+}
+
 function characterSkinById(id) {
   return CHARACTER_SKINS.find(s => s.id === id) || CHARACTER_SKINS[0];
 }
@@ -838,9 +878,16 @@ function confirmQuestAction() {
     closeConfirmModal();
     return;
   }
+  const amount = DIFF_XP[q.diff];
+  const earned = todayEarnedXp();
+  if (earned + amount > DAILY_XP_MAX) {
+    closeConfirmModal();
+    openXpLimitModal(earned, amount);
+    return;
+  }
   q.done = true;
-  playBattleReward(DIFF_XP[q.diff]);
-  gainXp(DIFF_XP[q.diff], q.diff);
+  playBattleReward(amount);
+  gainXp(amount, q.diff);
   LS.set(todayKey(), todayQuests);
   LS.set('sq_state', S);
   renderQuests();
@@ -905,7 +952,7 @@ function saveName() {
   S.playerName = val;
   let eggClaimedNow = false;
   if (val === '돈내놔' && !S.moneyEggClaimed) {
-    S.coins += 200;
+    S.coins += 1000;
     S.moneyEggClaimed = true;
     eggClaimedNow = true;
   }
