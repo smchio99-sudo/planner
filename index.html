@@ -72,6 +72,28 @@ body::before{
   transition:width .5s cubic-bezier(.4,0,.2,1)}
 .xp-label{font-size:11px;color:var(--txt2);white-space:nowrap;min-width:80px;text-align:right}
 
+.battle-stage{width:150px;height:92px;position:relative;flex-shrink:0;align-self:center;
+  overflow:visible;filter:drop-shadow(0 8px 10px rgba(20,28,55,.14))}
+.battle-frame{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center bottom;
+  image-rendering:auto;transition:transform .12s ease}
+.battle-stage.attacking .battle-frame{animation:battlePulse .96s ease both}
+.battle-xp-pop{position:absolute;right:10px;top:2px;padding:2px 8px;border-radius:20px;
+  background:rgba(255,255,255,.94);border:1px solid rgba(91,141,238,.3);
+  color:var(--accent);font-size:11px;font-weight:800;opacity:0;transform:translateY(10px);
+  box-shadow:0 6px 16px rgba(91,141,238,.18);pointer-events:none;white-space:nowrap}
+.battle-stage.attacking .battle-xp-pop{animation:xpPop .96s ease both}
+@keyframes battlePulse{0%,100%{transform:scale(1)}45%{transform:scale(1.04)}70%{transform:scale(1.02)}}
+@keyframes xpPop{0%,58%{opacity:0;transform:translateY(10px) scale(.9)}68%{opacity:1;transform:translateY(0) scale(1.08)}100%{opacity:0;transform:translateY(-22px) scale(1)}}
+@media(max-width:560px){
+  .header{align-items:flex-start;gap:12px}
+  .battle-stage{width:118px;height:78px;margin-top:2px}
+}
+@media(max-width:430px){
+  .header{flex-wrap:wrap}
+  .header-info{flex-basis:calc(100% - 78px)}
+  .battle-stage{width:100%;height:82px;margin-left:72px}
+}
+
 /* ─── tabs ─── */
 .tabs{display:flex;gap:4px;margin-bottom:16px;background:var(--bg2);
   border:1px solid var(--border);border-radius:var(--card-radius);padding:4px}
@@ -196,6 +218,7 @@ body::before{
 .shop-header{display:flex;align-items:center;justify-content:space-between;
   padding:12px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-radius)}
 .shop-title{font-size:15px;font-weight:700}
+.shop-section-title{font-size:13px;font-weight:800;color:var(--txt2);padding:4px 2px 0}
 .shop-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 @media(max-width:480px){.shop-grid{grid-template-columns:repeat(2,1fr)}}
 .skin-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-radius);
@@ -215,6 +238,14 @@ body::before{
 .badge-owned{background:rgba(26,170,87,.12);color:#1aaa57}
 .badge-equipped{background:rgba(91,141,238,.2);color:var(--accent)}
 .skin-locked{position:absolute;top:8px;right:8px;font-size:11px;color:var(--txt3)}
+.character-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(max-width:480px){.character-grid{grid-template-columns:1fr}}
+.character-card{padding:14px 12px}
+.character-portrait{width:74px;height:74px;border-radius:50%;margin:0 auto 10px;
+  border:2px solid rgba(200,134,10,.45);background:var(--bg3);overflow:hidden;
+  display:flex;align-items:center;justify-content:center;color:var(--txt3);font-size:11px;font-weight:700}
+.character-portrait img{width:100%;height:100%;object-fit:cover;display:block}
+.character-portrait.empty{border-style:dashed;background:linear-gradient(135deg,#f8f9fc,#eef1f8)}
 
 /* ─── toast ─── */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
@@ -450,6 +481,10 @@ body::before{
       <div class="xp-label" id="xp-label">0 / 100 XP</div>
     </div>
   </div>
+  <div class="battle-stage" id="battle-stage" aria-label="용사와 드래곤 전투 애니메이션">
+    <img class="battle-frame" id="battle-frame" src="assets/battle-frame-01.png" alt="">
+    <span class="battle-xp-pop" id="battle-xp-pop">+0XP</span>
+  </div>
 </div>
 
 <!-- tabs -->
@@ -520,6 +555,8 @@ body::before{
     </div>
   </div>
   <div class="shop-grid" id="shop-grid"></div>
+  <div class="shop-section-title">전투 캐릭터 스킨</div>
+  <div class="character-grid" id="character-shop-grid"></div>
 </div>
 
 </div><!-- /app -->
@@ -537,11 +574,16 @@ const SKINS = [
   {id:'s7', emoji:'🤖', name:'AI 로봇', price:250},
   {id:'s8', emoji:'🔮', name:'예언자', price:180},
 ];
+const CHARACTER_SKINS = [
+  {id:'default', name:'기본 용사', price:0, portrait:'assets/default-portrait.png', framePrefix:'battle-frame'},
+  {id:'minami', name:'미나미', price:200, portrait:'assets/minami-portrait.png', framePrefix:'minami-battle-frame'},
+  {id:'blue', name:'마법소녀 블루', price:200, portrait:'assets/blue-portrait.png', framePrefix:'blue-battle-frame'},
+];
 const DIFF_XP = {easy:15, normal:30, hard:60};
 const XP_BASE = 100; // xp needed = level * XP_BASE
 
 // ─── state ───
-let S = {level:1, xp:0, coins:0, equippedSkin:'s0', ownedSkins:['s0']};
+let S = {level:1, xp:0, coins:0, equippedSkin:'s0', ownedSkins:['s0'], equippedCharacterSkin:'default', ownedCharacterSkins:['default']};
 let todayQuests = [];
 let calState = {y: new Date().getFullYear(), m: new Date().getMonth()};
 let selCalDay = null;
@@ -572,6 +614,11 @@ function dateKey(y,m,d) { return `sq_q_${y}-${pad(m+1)}-${pad(d)}`; }
 // ─── init ───
 function init() {
   S = LS.get('sq_state', S);
+  if (!S.ownedSkins) S.ownedSkins = ['s0'];
+  if (!S.equippedSkin) S.equippedSkin = 's0';
+  if (!S.ownedCharacterSkins) S.ownedCharacterSkins = ['default'];
+  if (!S.ownedCharacterSkins.includes('default')) S.ownedCharacterSkins.unshift('default');
+  if (!S.equippedCharacterSkin) S.equippedCharacterSkin = 'default';
   if (!S.playerName) S.playerName = '모험가';
   document.getElementById('player-name').textContent = S.playerName;
   viewDate = new Date();
@@ -657,6 +704,11 @@ function updateStatBar() {
   document.getElementById('coins-shop').textContent = S.coins;
   const skin = SKINS.find(s => s.id === S.equippedSkin) || SKINS[0];
   document.getElementById('avatar').textContent = skin.emoji;
+  const battleFrame = document.getElementById('battle-frame');
+  const battleStage = document.getElementById('battle-stage');
+  if (battleFrame && (!battleStage || !battleStage.classList.contains('attacking'))) {
+    battleFrame.src = battleFramesForSkin(S.equippedCharacterSkin)[0];
+  }
   if (S.playerName) document.getElementById('player-name').textContent = S.playerName;
   if (S.motto) document.getElementById('motto-text').textContent = S.motto;
 }
@@ -715,16 +767,56 @@ function addQuest() {
 
 let pendingQuestIdx = null;
 
+function characterSkinById(id) {
+  return CHARACTER_SKINS.find(s => s.id === id) || CHARACTER_SKINS[0];
+}
+
+function battleFramesForSkin(id) {
+  const skin = characterSkinById(id);
+  return Array.from({length: 8}, (_, i) => `assets/${skin.framePrefix}-${String(i + 1).padStart(2, '0')}.png`);
+}
+
+function preloadBattleFrames(id) {
+  battleFramesForSkin(id).forEach(src => {
+    const img = new Image();
+    img.src = src;
+  });
+}
+CHARACTER_SKINS.forEach(s => preloadBattleFrames(s.id));
+
+function playBattleReward(amount) {
+  const stage = document.getElementById('battle-stage');
+  const frame = document.getElementById('battle-frame');
+  const xpPop = document.getElementById('battle-xp-pop');
+  if (!stage || !frame || !xpPop) return;
+  const frames = battleFramesForSkin(S.equippedCharacterSkin);
+  xpPop.textContent = `+${amount}XP`;
+  stage.classList.remove('attacking');
+  clearInterval(stage._battleFrameTimer);
+  clearTimeout(stage._battleTimer);
+  frame.src = frames[0];
+  let frameIdx = 0;
+  void stage.offsetWidth;
+  stage.classList.add('attacking');
+  stage._battleFrameTimer = setInterval(() => {
+    frameIdx++;
+    if (frameIdx >= frames.length) {
+      clearInterval(stage._battleFrameTimer);
+      return;
+    }
+    frame.src = frames[frameIdx];
+  }, 120);
+  stage._battleTimer = setTimeout(() => {
+    clearInterval(stage._battleFrameTimer);
+    frame.src = frames[0];
+    stage.classList.remove('attacking');
+  }, 1040);
+}
+
 function toggleQuest(i) {
   const q = todayQuests[i];
   if (q.done) {
-    // 완료 취소는 바로 처리
-    q.done = false;
-    S.xp = Math.max(0, S.xp - DIFF_XP[q.diff]);
-    LS.set(todayKey(), todayQuests);
-    LS.set('sq_state', S);
-    renderQuests();
-    updateStatBar();
+    toast('✅', '이미 완료한 퀘스트입니다!');
     return;
   }
   // 완료 확인 모달
@@ -740,7 +832,12 @@ function toggleQuest(i) {
 function confirmQuestAction() {
   if (pendingQuestIdx === null) return;
   const q = todayQuests[pendingQuestIdx];
+  if (!q || q.done) {
+    closeConfirmModal();
+    return;
+  }
   q.done = true;
+  playBattleReward(DIFF_XP[q.diff]);
   gainXp(DIFF_XP[q.diff], q.diff);
   LS.set(todayKey(), todayQuests);
   LS.set('sq_state', S);
@@ -804,10 +901,17 @@ function saveName() {
   const val = document.getElementById('name-input').value.trim();
   if (!val) return;
   S.playerName = val;
+  let eggClaimedNow = false;
+  if (val === '돈내놔' && !S.moneyEggClaimed) {
+    S.coins += 1000;
+    S.moneyEggClaimed = true;
+    eggClaimedNow = true;
+  }
   LS.set('sq_state', S);
   document.getElementById('player-name').textContent = val;
+  updateStatBar();
   closeNameModal();
-  toast('✏️', `이름이 "${val}"(으)로 변경됐어요!`);
+  toast(eggClaimedNow ? '🪙' : '✏️', eggClaimedNow ? '이스터에그 발견! +1000 코인' : `이름이 "${val}"(으)로 변경됐어요!`);
 }
 
 // ─── toast ───
@@ -911,24 +1015,61 @@ function renderShop() {
     if (equipped) priceHtml = `<span class="skin-badge badge-equipped">✓ 장착 중</span>`;
     else if (owned) priceHtml = `<span class="skin-badge badge-owned">보유 중</span>`;
     else priceHtml = `<div class="skin-price"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>${s.price} 코인</div>`;
-    return `<div class="skin-card${equipped?' equipped':owned?' owned':''}" onclick="shopAct('${s.id}',${s.price})">
+    return `<div class="skin-card${equipped?' equipped':owned?' owned':''}" onclick="shopAct('${s.id}')">
       ${!owned&&s.price>0?`<span class="skin-locked">🔒</span>`:''}
       <span class="skin-emoji">${s.emoji}</span>
       <div class="skin-name">${s.name}</div>
       ${priceHtml}
     </div>`;
   }).join('');
+  document.getElementById('character-shop-grid').innerHTML = CHARACTER_SKINS.map(s => {
+    const owned = S.ownedCharacterSkins.includes(s.id);
+    const equipped = S.equippedCharacterSkin === s.id;
+    let priceHtml;
+    if (equipped && s.price === 0) priceHtml = `<span class="skin-badge badge-equipped">✓ 장착 중</span> <span class="skin-badge badge-owned">무료</span>`;
+    else if (equipped) priceHtml = `<span class="skin-badge badge-equipped">✓ 장착 중</span>`;
+    else if (s.price === 0) priceHtml = `<span class="skin-badge badge-owned">무료</span>`;
+    else if (owned) priceHtml = `<span class="skin-badge badge-owned">보유 중</span>`;
+    else priceHtml = `<div class="skin-price"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>${s.price} 코인</div>`;
+    const portrait = s.portrait
+      ? `<div class="character-portrait"><img src="${s.portrait}" alt="${s.name} 초상화"></div>`
+      : `<div class="character-portrait empty"></div>`;
+    return `<div class="skin-card character-card${equipped?' equipped':owned?' owned':''}" onclick="characterShopAct('${s.id}')">
+      ${!owned&&s.price>0?`<span class="skin-locked">🔒</span>`:''}
+      ${portrait}
+      <div class="skin-name">${s.name}</div>
+      ${priceHtml}
+    </div>`;
+  }).join('');
 }
 
-function shopAct(id, price) {
+function shopAct(id) {
+  const skin = SKINS.find(s => s.id === id);
+  if (!skin) return;
   const owned = S.ownedSkins.includes(id);
   if (!owned) {
-    if (S.coins < price) { toast('❌','코인이 부족합니다!'); return; }
-    S.coins -= price;
+    if (S.coins < skin.price) { toast('❌','코인이 부족합니다!'); return; }
+    S.coins -= skin.price;
     S.ownedSkins.push(id);
-    toast('✨', `${SKINS.find(s=>s.id===id).name} 스킨 구매!`);
+    toast('✨', `${skin.name} 스킨 구매!`);
   }
   S.equippedSkin = id;
+  LS.set('sq_state', S);
+  updateStatBar();
+  renderShop();
+}
+
+function characterShopAct(id) {
+  const skin = characterSkinById(id);
+  const owned = S.ownedCharacterSkins.includes(id);
+  if (!owned) {
+    if (S.coins < skin.price) { toast('❌','코인이 부족합니다!'); return; }
+    S.coins -= skin.price;
+    S.ownedCharacterSkins.push(id);
+    toast('✨', `${skin.name} 캐릭터 구매!`);
+  }
+  S.equippedCharacterSkin = id;
+  preloadBattleFrames(id);
   LS.set('sq_state', S);
   updateStatBar();
   renderShop();
