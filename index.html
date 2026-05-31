@@ -591,7 +591,7 @@ const SKINS = [
 ];
 const CHARACTER_SKINS = [
   {id:'default', name:'기본 용사', price:0, portrait:'assets/default-portrait.png', framePrefix:'battle-frame'},
-  {id:'minami', name:'미나미', price:200, portrait:'assets/minami-portrait.png', framePrefix:'minami-battle-frame'},
+  {id:'minami', name:'하루카', price:200, portrait:'assets/minami-portrait.png', framePrefix:'minami-battle-frame'},
   {id:'blue', name:'마법소녀 블루', price:200, portrait:'assets/blue-portrait.png', framePrefix:'blue-battle-frame'},
   {id:'pink', name:'핑크공주', price:200, portrait:'assets/pink-portrait.png', framePrefix:'pink-battle-frame'},
   {id:'dark', name:'어둠의 성준', price:200, portrait:'assets/dark-portrait.png', framePrefix:'dark-battle-frame'},
@@ -952,7 +952,7 @@ function saveName() {
   S.playerName = val;
   let eggClaimedNow = false;
   if (val === '돈내놔' && !S.moneyEggClaimed) {
-    S.coins += 1000;
+    S.coins += 200;
     S.moneyEggClaimed = true;
     eggClaimedNow = true;
   }
