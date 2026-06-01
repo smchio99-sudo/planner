@@ -56,8 +56,9 @@ body::before{
 }
 .avatar-wrap{position:relative;flex-shrink:0}
 .avatar{width:56px;height:56px;border-radius:50%;background:var(--bg3);border:2px solid var(--border2);
-  display:flex;align-items:center;justify-content:center;font-size:26px;
+  display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;
   transition:transform .2s;cursor:pointer}
+.avatar img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
 .avatar:hover{transform:scale(1.08)}
 .lv-badge{position:absolute;bottom:-4px;right:-4px;background:var(--accent);color:#fff;
   font-size:10px;font-weight:700;border-radius:20px;padding:1px 6px;border:2px solid var(--bg2)}
@@ -75,10 +76,11 @@ body::before{
   transition:width .5s cubic-bezier(.4,0,.2,1)}
 .xp-label{font-size:11px;color:var(--txt2);white-space:nowrap;min-width:80px;text-align:right}
 
-.battle-stage{width:168px;height:104px;position:relative;flex-shrink:0;align-self:center;
+.battle-stage{width:168px;height:104px;position:relative;flex-shrink:0;align-self:center;cursor:pointer;
   overflow:visible;filter:drop-shadow(0 8px 10px rgba(20,28,55,.14))}
+.battle-stage,.battle-stage *{-webkit-user-select:none;user-select:none;-webkit-user-drag:none;touch-action:manipulation}
 .battle-frame{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center bottom;
-  image-rendering:auto;transition:transform .12s ease}
+  image-rendering:auto;transition:transform .12s ease;pointer-events:none}
 .battle-stage.attacking .battle-frame{animation:battlePulse .96s ease both}
 .battle-xp-pop{position:absolute;right:10px;top:2px;padding:2px 8px;border-radius:20px;
   background:rgba(255,255,255,.94);border:1px solid rgba(91,141,238,.3);
@@ -222,8 +224,6 @@ body::before{
   padding:12px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-radius)}
 .shop-title{font-size:15px;font-weight:700}
 .shop-section-title{font-size:13px;font-weight:800;color:var(--txt2);padding:4px 2px 0}
-.shop-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-@media(max-width:480px){.shop-grid{grid-template-columns:repeat(2,1fr)}}
 .skin-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-radius);
   padding:16px 10px;text-align:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
 .skin-card::after{content:'';position:absolute;inset:0;opacity:0;transition:opacity .2s;
@@ -346,9 +346,10 @@ body::before{
 .btn-intro-ok:hover{opacity:.9;transform:translateY(-1px)}
 
 /* ─── motto ─── */
-.motto-wrap{display:flex;align-items:center;gap:6px;margin-top:3px}
+.motto-wrap{display:flex;align-items:flex-start;gap:6px;margin-top:3px}
 .motto-text{font-size:11px;color:var(--txt3);font-style:italic;cursor:pointer;
-  transition:color .15s;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  transition:color .15s;max-width:420px;overflow:visible;text-overflow:clip;white-space:normal;
+  line-height:1.45;overflow-wrap:anywhere;word-break:keep-all}
 .motto-text:hover{color:var(--accent)}
 .edit-motto-btn{background:none;border:none;cursor:pointer;color:var(--txt3);
   padding:2px;display:flex;align-items:center;transition:color .15s;flex-shrink:0}
@@ -471,7 +472,7 @@ body::before{
 <!-- header -->
 <div class="header">
   <div class="avatar-wrap">
-    <div class="avatar" id="avatar" title="스킨 상점에서 변경">🧑‍💻</div>
+    <div class="avatar" id="avatar" title="스킨 상점에서 변경"></div>
     <div class="lv-badge" id="lv-badge">Lv.1</div>
   </div>
   <div class="header-info">
@@ -496,7 +497,7 @@ body::before{
       <div class="xp-label" id="xp-label">0 / 100 XP</div>
     </div>
   </div>
-  <div class="battle-stage" id="battle-stage" aria-label="용사와 드래곤 전투 애니메이션">
+  <div class="battle-stage" id="battle-stage" aria-label="용사와 드래곤 전투 애니메이션" title="클릭하면 공격 모션 보기">
     <img class="battle-frame" id="battle-frame" src="assets/battle-frame-01.png" alt="">
     <span class="battle-xp-pop" id="battle-xp-pop">+0XP</span>
   </div>
@@ -569,7 +570,6 @@ body::before{
       <span id="coins-shop">0</span> 코인
     </div>
   </div>
-  <div class="shop-grid" id="shop-grid"></div>
   <div class="shop-section-title">전투 캐릭터 스킨</div>
   <div class="character-grid" id="character-shop-grid"></div>
 </div>
@@ -578,17 +578,6 @@ body::before{
 
 <script>
 // ─── constants ───
-const SKINS = [
-  {id:'s0', emoji:'🧑‍💻', name:'기본 해커', price:0},
-  {id:'s1', emoji:'🧙‍♂️', name:'공부 마법사', price:50},
-  {id:'s2', emoji:'🦊', name:'여우 학자', price:80},
-  {id:'s3', emoji:'🐉', name:'드래곤 학생', price:120},
-  {id:'s4', emoji:'🧑‍🚀', name:'우주 공학도', price:150},
-  {id:'s5', emoji:'🦁', name:'사자 대왕', price:200},
-  {id:'s6', emoji:'👑', name:'황금 제왕', price:350},
-  {id:'s7', emoji:'🤖', name:'AI 로봇', price:250},
-  {id:'s8', emoji:'🔮', name:'예언자', price:180},
-];
 const CHARACTER_SKINS = [
   {id:'default', name:'기본 용사', price:0, portrait:'assets/default-portrait.png', framePrefix:'battle-frame'},
   {id:'minami', name:'미나미', price:200, portrait:'assets/minami-portrait.png', framePrefix:'minami-battle-frame'},
@@ -604,7 +593,7 @@ const XP_BASE = 100; // xp needed = level * XP_BASE
 const DAILY_XP_MAX = 200;
 
 // ─── state ───
-let S = {level:1, xp:0, coins:0, equippedSkin:'s0', ownedSkins:['s0'], equippedCharacterSkin:'default', ownedCharacterSkins:['default']};
+let S = {level:1, xp:0, coins:0, equippedCharacterSkin:'default', ownedCharacterSkins:['default']};
 let todayQuests = [];
 let calState = {y: new Date().getFullYear(), m: new Date().getMonth()};
 let selCalDay = null;
@@ -645,8 +634,6 @@ function dateKey(y,m,d) { return `sq_q_${y}-${pad(m+1)}-${pad(d)}`; }
 function init() {
   lockBrowserGestures();
   S = LS.get('sq_state', S);
-  if (!S.ownedSkins) S.ownedSkins = ['s0'];
-  if (!S.equippedSkin) S.equippedSkin = 's0';
   if (!S.ownedCharacterSkins) S.ownedCharacterSkins = ['default'];
   if (!S.ownedCharacterSkins.includes('default')) S.ownedCharacterSkins.unshift('default');
   if (!S.equippedCharacterSkin) S.equippedCharacterSkin = 'default';
@@ -662,6 +649,7 @@ function init() {
   document.getElementById('q-input').addEventListener('keydown', e => { if (e.key === 'Enter') addQuest(); });
   document.getElementById('name-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveName(); });
   document.getElementById('motto-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveMotto(); });
+  setupBattlePreviewClick();
   updatePastBanner();
   // 명언 적용
   const motto = S.motto || '✨ 오늘도 한 걸음씩!';
@@ -733,8 +721,11 @@ function updateStatBar() {
   document.getElementById('lv-badge').textContent = 'Lv.' + S.level;
   document.getElementById('coins-hdr').textContent = S.coins;
   document.getElementById('coins-shop').textContent = S.coins;
-  const skin = SKINS.find(s => s.id === S.equippedSkin) || SKINS[0];
-  document.getElementById('avatar').textContent = skin.emoji;
+  const avatar = document.getElementById('avatar');
+  const equippedCharacter = characterSkinById(S.equippedCharacterSkin);
+  avatar.innerHTML = equippedCharacter.portrait
+    ? `<img src="${equippedCharacter.portrait}" alt="${equippedCharacter.name} 초상화">`
+    : '🧑‍💻';
   const battleFrame = document.getElementById('battle-frame');
   const battleStage = document.getElementById('battle-stage');
   if (battleFrame && (!battleStage || !battleStage.classList.contains('attacking'))) {
@@ -821,41 +812,82 @@ function battleFramesForSkin(id) {
   return Array.from({length: 8}, (_, i) => `assets/${skin.framePrefix}-${String(i + 1).padStart(2, '0')}.png`);
 }
 
+const BATTLE_IMAGE_CACHE = {};
 function preloadBattleFrames(id) {
-  battleFramesForSkin(id).forEach(src => {
+  BATTLE_IMAGE_CACHE[id] = battleFramesForSkin(id).map(src => {
     const img = new Image();
     img.src = src;
+    if (img.decode) img.decode().catch(() => {});
+    return img;
   });
 }
 CHARACTER_SKINS.forEach(s => preloadBattleFrames(s.id));
 
-function playBattleReward(amount) {
+function setupBattlePreviewClick() {
+  const stage = document.getElementById('battle-stage');
+  if (!stage || stage._battlePreviewBound) return;
+  stage._battlePreviewBound = true;
+  let startPoint = null;
+  stage.addEventListener('pointerdown', e => {
+    startPoint = {x: e.clientX, y: e.clientY};
+  });
+  stage.addEventListener('pointerup', e => {
+    if (!startPoint) return;
+    const moved = Math.hypot(e.clientX - startPoint.x, e.clientY - startPoint.y);
+    startPoint = null;
+    if (moved > 8) return;
+    e.preventDefault();
+    e.stopPropagation();
+    playBattlePreview();
+  });
+  stage.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, true);
+}
+
+function setBattleFrame(frame, src) {
+  if (frame.getAttribute('src') !== src) frame.src = src;
+}
+
+function playBattleReward(amount, options = {}) {
+  const showXp = options.showXp !== false;
   const stage = document.getElementById('battle-stage');
   const frame = document.getElementById('battle-frame');
   const xpPop = document.getElementById('battle-xp-pop');
   if (!stage || !frame || !xpPop) return;
   const frames = battleFramesForSkin(S.equippedCharacterSkin);
+  const runId = (stage._battleRunId || 0) + 1;
+  stage._battleRunId = runId;
   xpPop.textContent = `+${amount}XP`;
+  xpPop.style.display = showXp ? '' : 'none';
   stage.classList.remove('attacking');
-  clearInterval(stage._battleFrameTimer);
+  (stage._battleFrameTimers || []).forEach(timer => clearTimeout(timer));
+  stage._battleFrameTimers = [];
   clearTimeout(stage._battleTimer);
-  frame.src = frames[0];
-  let frameIdx = 0;
+  setBattleFrame(frame, frames[0]);
   void stage.offsetWidth;
   stage.classList.add('attacking');
-  stage._battleFrameTimer = setInterval(() => {
-    frameIdx++;
-    if (frameIdx >= frames.length) {
-      clearInterval(stage._battleFrameTimer);
-      return;
-    }
-    frame.src = frames[frameIdx];
-  }, 120);
+
+  frames.forEach((src, idx) => {
+    const timer = setTimeout(() => {
+      if (stage._battleRunId !== runId) return;
+      setBattleFrame(frame, src);
+    }, idx * 110);
+    stage._battleFrameTimers.push(timer);
+  });
+
   stage._battleTimer = setTimeout(() => {
-    clearInterval(stage._battleFrameTimer);
-    frame.src = frames[0];
+    if (stage._battleRunId !== runId) return;
+    setBattleFrame(frame, frames[0]);
     stage.classList.remove('attacking');
-  }, 1040);
+    xpPop.style.display = '';
+    stage._battleFrameTimers = [];
+  }, frames.length * 110 + 140);
+}
+
+function playBattlePreview() {
+  playBattleReward(0, {showXp: false});
 }
 
 function toggleQuest(i) {
@@ -1062,20 +1094,6 @@ function calClickDay(d) {
 // ─── shop ───
 function renderShop() {
   document.getElementById('coins-shop').textContent = S.coins;
-  document.getElementById('shop-grid').innerHTML = SKINS.map(s => {
-    const owned = S.ownedSkins.includes(s.id);
-    const equipped = S.equippedSkin === s.id;
-    let priceHtml;
-    if (equipped) priceHtml = `<span class="skin-badge badge-equipped">✓ 장착 중</span>`;
-    else if (owned) priceHtml = `<span class="skin-badge badge-owned">보유 중</span>`;
-    else priceHtml = `<div class="skin-price"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>${s.price} 코인</div>`;
-    return `<div class="skin-card${equipped?' equipped':owned?' owned':''}" onclick="shopAct('${s.id}')">
-      ${!owned&&s.price>0?`<span class="skin-locked">🔒</span>`:''}
-      <span class="skin-emoji">${s.emoji}</span>
-      <div class="skin-name">${s.name}</div>
-      ${priceHtml}
-    </div>`;
-  }).join('');
   document.getElementById('character-shop-grid').innerHTML = CHARACTER_SKINS.map(s => {
     const owned = S.ownedCharacterSkins.includes(s.id);
     const equipped = S.equippedCharacterSkin === s.id;
@@ -1095,22 +1113,6 @@ function renderShop() {
       ${priceHtml}
     </div>`;
   }).join('');
-}
-
-function shopAct(id) {
-  const skin = SKINS.find(s => s.id === id);
-  if (!skin) return;
-  const owned = S.ownedSkins.includes(id);
-  if (!owned) {
-    if (S.coins < skin.price) { toast('❌','코인이 부족합니다!'); return; }
-    S.coins -= skin.price;
-    S.ownedSkins.push(id);
-    toast('✨', `${skin.name} 스킨 구매!`);
-  }
-  S.equippedSkin = id;
-  LS.set('sq_state', S);
-  updateStatBar();
-  renderShop();
 }
 
 function characterShopAct(id) {
