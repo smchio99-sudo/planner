@@ -774,7 +774,7 @@ function renderQuests() {
       </div>
       <span class="quest-text">${escHtml(q.text)}</span>
       <span class="diff-pill pill-${q.diff}">${q.diff==='easy'?'쉬움':q.diff==='hard'?'어려움':'보통'}</span>
-      <span class="xp-pill">+${DIFF_XP[q.diff]}XP</span>
+      <span class="xp-pill">+${q.done && q.xpAwarded !== undefined ? q.xpAwarded : DIFF_XP[q.diff]}XP</span>
       ${past?'':`<button class="del-btn" onclick="event.stopPropagation();deleteQuest(${i})" title="삭제">
         <svg class="del-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>`}
@@ -799,7 +799,7 @@ function addQuest() {
 let pendingQuestIdx = null;
 
 function todayEarnedXp() {
-  return todayQuests.reduce((sum, q) => q.done ? sum + DIFF_XP[q.diff] : sum, 0);
+  return todayQuests.reduce((sum, q) => q.done ? sum + (q.xpAwarded ?? DIFF_XP[q.diff]) : sum, 0);
 }
 
 function openXpLimitModal(current, amount) {
@@ -883,14 +883,11 @@ function confirmQuestAction() {
   }
   const amount = DIFF_XP[q.diff];
   const earned = todayEarnedXp();
-  if (earned + amount > DAILY_XP_MAX) {
-    closeConfirmModal();
-    openXpLimitModal(earned, amount);
-    return;
-  }
+  const awardedXp = earned + amount > DAILY_XP_MAX ? 0 : amount;
   q.done = true;
-  playBattleReward(amount);
-  gainXp(amount, q.diff);
+  q.xpAwarded = awardedXp;
+  playBattleReward(awardedXp);
+  gainXp(awardedXp, q.diff);
   LS.set(todayKey(), todayQuests);
   LS.set('sq_state', S);
   renderQuests();
@@ -907,7 +904,7 @@ function closeConfirmModal() {
 }
 
 function deleteQuest(i) {
-  if (todayQuests[i].done) S.xp = Math.max(0, S.xp - DIFF_XP[todayQuests[i].diff]);
+  if (todayQuests[i].done) S.xp = Math.max(0, S.xp - (todayQuests[i].xpAwarded ?? DIFF_XP[todayQuests[i].diff]));
   todayQuests.splice(i, 1);
   LS.set(todayKey(), todayQuests);
   LS.set('sq_state', S);
@@ -918,7 +915,7 @@ function deleteQuest(i) {
 function gainXp(amount, diff) {
   S.xp += amount;
   const msgs = {easy:'쉬운 퀘스트 완료!', normal:'퀘스트 완료!', hard:'어려운 퀘스트 완료!'};
-  toast('⭐', `+${amount}XP — ${msgs[diff]||'완료!'}`);
+  toast('⭐', amount === 0 ? `+0XP — 하루 최대 ${DAILY_XP_MAX}XP 달성!` : `+${amount}XP — ${msgs[diff]||'완료!'}`);
   const maxXp = S.level * XP_BASE;
   if (S.xp >= maxXp) {
     S.xp -= maxXp;
@@ -953,17 +950,22 @@ function saveName() {
   const val = document.getElementById('name-input').value.trim();
   if (!val) return;
   S.playerName = val;
-  let eggClaimedNow = false;
+  let eggMessage = '';
   if (val === '돈내놔' && !S.moneyEggClaimed) {
-    S.coins += 1000;
+    S.coins += 200;
     S.moneyEggClaimed = true;
-    eggClaimedNow = true;
+    eggMessage = '이스터에그 발견! +200 코인';
+  }
+  if (val === '최수민존잘' && !S.handsomeEggClaimed) {
+    S.coins += 2000;
+    S.handsomeEggClaimed = true;
+    eggMessage = '이스터에그 발견! +2000 코인';
   }
   LS.set('sq_state', S);
   document.getElementById('player-name').textContent = val;
   updateStatBar();
   closeNameModal();
-  toast(eggClaimedNow ? '🪙' : '✏️', eggClaimedNow ? '이스터에그 발견! +1000 코인' : `이름이 "${val}"(으)로 변경됐어요!`);
+  toast(eggMessage ? '🪙' : '✏️', eggMessage || `이름이 "${val}"(으)로 변경됐어요!`);
 }
 
 // ─── toast ───
@@ -1038,7 +1040,7 @@ function calClickDay(d) {
   <div class="popup-stat">
     <div class="stat-chip"><div class="stat-num">${done}</div><div class="stat-lbl">완료</div></div>
     <div class="stat-chip"><div class="stat-num">${qs.length}</div><div class="stat-lbl">전체</div></div>
-    <div class="stat-chip"><div class="stat-num">${qs.reduce((a,q)=>q.done?a+DIFF_XP[q.diff]:a,0)}</div><div class="stat-lbl">획득 XP</div></div>
+    <div class="stat-chip"><div class="stat-num">${qs.reduce((a,q)=>q.done?a+(q.xpAwarded ?? DIFF_XP[q.diff]):a,0)}</div><div class="stat-lbl">획득 XP</div></div>
   </div>`;
   if (!qs.length) {
     inner += `<div style="font-size:12px;color:var(--txt3);text-align:center;padding:8px">기록된 퀘스트가 없습니다.</div>`;
@@ -1049,7 +1051,7 @@ function calClickDay(d) {
           ${q.done?'<polyline points="20 6 9 17 4 12"/>':'<circle cx="12" cy="12" r="9"/>'}
         </svg>
         ${escHtml(q.text)}
-        <span style="margin-left:auto;font-size:10px;color:var(--txt3)">${DIFF_XP[q.diff]}XP</span>
+        <span style="margin-left:auto;font-size:10px;color:var(--txt3)">${q.done && q.xpAwarded !== undefined ? q.xpAwarded : DIFF_XP[q.diff]}XP</span>
       </div>
     `).join('');
   }
