@@ -75,7 +75,7 @@ body::before{
   transition:width .5s cubic-bezier(.4,0,.2,1)}
 .xp-label{font-size:11px;color:var(--txt2);white-space:nowrap;min-width:80px;text-align:right}
 
-.battle-stage{width:150px;height:92px;position:relative;flex-shrink:0;align-self:center;
+.battle-stage{width:168px;height:104px;position:relative;flex-shrink:0;align-self:center;
   overflow:visible;filter:drop-shadow(0 8px 10px rgba(20,28,55,.14))}
 .battle-frame{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center bottom;
   image-rendering:auto;transition:transform .12s ease}
@@ -89,12 +89,12 @@ body::before{
 @keyframes xpPop{0%,58%{opacity:0;transform:translateY(10px) scale(.9)}68%{opacity:1;transform:translateY(0) scale(1.08)}100%{opacity:0;transform:translateY(-22px) scale(1)}}
 @media(max-width:560px){
   .header{align-items:flex-start;gap:12px}
-  .battle-stage{width:118px;height:78px;margin-top:2px}
+  .battle-stage{width:132px;height:86px;margin-top:2px}
 }
 @media(max-width:430px){
   .header{flex-wrap:wrap}
   .header-info{flex-basis:calc(100% - 78px)}
-  .battle-stage{width:100%;height:82px;margin-left:72px}
+  .battle-stage{width:100%;height:92px;margin-left:72px}
 }
 
 /* ─── tabs ─── */
@@ -591,10 +591,13 @@ const SKINS = [
 ];
 const CHARACTER_SKINS = [
   {id:'default', name:'기본 용사', price:0, portrait:'assets/default-portrait.png', framePrefix:'battle-frame'},
-  {id:'minami', name:'하루카', price:200, portrait:'assets/minami-portrait.png', framePrefix:'minami-battle-frame'},
+  {id:'minami', name:'미나미', price:200, portrait:'assets/minami-portrait.png', framePrefix:'minami-battle-frame'},
   {id:'blue', name:'마법소녀 블루', price:200, portrait:'assets/blue-portrait.png', framePrefix:'blue-battle-frame'},
   {id:'pink', name:'핑크공주', price:200, portrait:'assets/pink-portrait.png', framePrefix:'pink-battle-frame'},
   {id:'dark', name:'어둠의 성준', price:200, portrait:'assets/dark-portrait.png', framePrefix:'dark-battle-frame'},
+  {id:'chihuahua', name:'말안듣는 치와와', price:200, portrait:'assets/chihuahua-portrait.png', framePrefix:'chihuahua-battle-frame'},
+  {id:'porongi', name:'뽀롱이', price:200, portrait:'assets/porongi-portrait.png', framePrefix:'porongi-battle-frame'},
+  {id:'jjaigeunwoo', name:'짜이근우', price:300, portrait:'assets/jjaigeunwoo-portrait.png', framePrefix:'jjaigeunwoo-battle-frame'},
 ];
 const DIFF_XP = {easy:15, normal:30, hard:60};
 const XP_BASE = 100; // xp needed = level * XP_BASE
@@ -952,7 +955,7 @@ function saveName() {
   S.playerName = val;
   let eggClaimedNow = false;
   if (val === '돈내놔' && !S.moneyEggClaimed) {
-    S.coins += 200;
+    S.coins += 1000;
     S.moneyEggClaimed = true;
     eggClaimedNow = true;
   }
