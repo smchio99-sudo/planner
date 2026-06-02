@@ -527,7 +527,7 @@ body::before{
     <button class="day-nav-btn" id="btn-next-day" onclick="changeDay(1)">&#9654;</button>
   </div>
   <div id="past-banner" style="display:none;align-items:center;justify-content:center;gap:8px;padding:8px 14px;background:rgba(240,180,41,.08);border:1px solid rgba(240,180,41,.25);border-radius:var(--radius);font-size:12px;color:#c8860a">
-    <span>&#128197; 과거 날짜 보기 모드 — 퀘스트 추가/삭제 불가</span>
+    <span>&#128197; 과거 날짜 보기 모드 — 퀘스트 추가/삭제는 불가, 완료 처리는 가능</span>
     <button onclick="goToday()" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit">오늘로</button>
   </div>
   <div class="add-form" id="add-form">
@@ -621,11 +621,24 @@ function realTodayKey() {
   const d = new Date();
   return dateKey(d.getFullYear(), d.getMonth(), d.getDate());
 }
+function dayOnly(d) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+function viewDayState() {
+  const view = dayOnly(viewDate).getTime();
+  const today = dayOnly(new Date()).getTime();
+  if (view < today) return 'past';
+  if (view > today) return 'future';
+  return 'today';
+}
 function isViewingToday() {
-  const now = new Date();
-  return viewDate.getFullYear()===now.getFullYear() &&
-    viewDate.getMonth()===now.getMonth() &&
-    viewDate.getDate()===now.getDate();
+  return viewDayState() === 'today';
+}
+function isViewingPast() {
+  return viewDayState() === 'past';
+}
+function isViewingFuture() {
+  return viewDayState() === 'future';
 }
 function pad(n) { return String(n).padStart(2,'0'); }
 function dateKey(y,m,d) { return `sq_q_${y}-${pad(m+1)}-${pad(d)}`; }
@@ -700,16 +713,33 @@ function goToday() {
   updateDateStr();
   updatePastBanner();
 }
+function openQuestDate(y, m, d) {
+  viewDate = new Date(y, m, d);
+  todayQuests = LS.get(todayKey(), []);
+  document.getElementById('cal-popup').classList.remove('show');
+  switchTab('today', document.querySelector('.tab[onclick*="today"]'));
+  renderQuests();
+  updateDateStr();
+  updatePastBanner();
+}
 function updatePastBanner() {
-  const isPast = !isViewingToday();
+  const state = viewDayState();
   const banner = document.getElementById('past-banner');
   const form = document.getElementById('add-form');
   const nextBtn = document.getElementById('btn-next-day');
-  banner.style.display = isPast ? 'flex' : 'none';
-  form.style.display = isPast ? 'none' : 'flex';
-  // 미래 이동 막기
-  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
-  nextBtn.disabled = viewDate >= tomorrow;
+  if (state === 'past') {
+    banner.style.display = 'flex';
+    banner.querySelector('span').textContent = '📅 과거 날짜 보기 모드 — 퀘스트 추가/삭제는 불가, 완료 처리는 가능';
+    form.style.display = 'none';
+  } else if (state === 'future') {
+    banner.style.display = 'flex';
+    banner.querySelector('span').textContent = '📝 미래 날짜 준비 모드 — 퀘스트 추가는 가능, 완료는 당일 이후 가능';
+    form.style.display = 'flex';
+  } else {
+    banner.style.display = 'none';
+    form.style.display = 'flex';
+  }
+  nextBtn.disabled = false;
 }
 
 // ─── stat bar ───
@@ -749,15 +779,21 @@ function updateDateStr() {
 // ─── quests ───
 function renderQuests() {
   const el = document.getElementById('quest-list');
-  const past = !isViewingToday();
+  const state = viewDayState();
+  const isPast = state === 'past';
+  const isFuture = state === 'future';
+  const canComplete = !isFuture;
+  const canDelete = !isPast;
   if (!todayQuests.length) {
-    el.innerHTML = past
+    el.innerHTML = isPast
       ? `<div class="empty-state"><div class="empty-icon">📅</div>이 날의 퀘스트 기록이 없습니다.</div>`
+      : isFuture
+      ? `<div class="empty-state"><div class="empty-icon">📝</div>미리 준비한 퀘스트가 없습니다.<br>내일의 목표를 추가해두세요!</div>`
       : `<div class="empty-state"><div class="empty-icon">📜</div>퀘스트가 없습니다.<br>목표를 추가하고 경험치를 획득하세요!</div>`;
     updateDateStr(); return;
   }
   el.innerHTML = todayQuests.map((q,i) => `
-    <div class="quest-item diff-${q.diff}${q.done?' done':''}" onclick="${past?'':`toggleQuest(${i})`}">
+    <div class="quest-item diff-${q.diff}${q.done?' done':''}" onclick="${canComplete?`toggleQuest(${i})`:`toast('⏳','미래 퀘스트는 해당 날짜가 된 뒤 완료할 수 있어요!')`}">
       <div class="check-circle${q.done?' checked':''}">
         <span class="check-icon">
           <svg class="check-svg" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
@@ -766,16 +802,19 @@ function renderQuests() {
       <span class="quest-text">${escHtml(q.text)}</span>
       <span class="diff-pill pill-${q.diff}">${q.diff==='easy'?'쉬움':q.diff==='hard'?'어려움':'보통'}</span>
       <span class="xp-pill">+${q.done && q.xpAwarded !== undefined ? q.xpAwarded : DIFF_XP[q.diff]}XP</span>
-      ${past?'':`<button class="del-btn" onclick="event.stopPropagation();deleteQuest(${i})" title="삭제">
+      ${canDelete?`<button class="del-btn" onclick="event.stopPropagation();deleteQuest(${i})" title="삭제">
         <svg class="del-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>`}
+      </button>`:''}
     </div>
   `).join('');
   updateDateStr();
 }
 
 function addQuest() {
-  if (!isViewingToday()) return;
+  if (isViewingPast()) {
+    toast('📅', '과거 날짜에는 새 퀘스트를 추가할 수 없어요!');
+    return;
+  }
   const inp = document.getElementById('q-input');
   const text = inp.value.trim();
   if (!text) return;
@@ -891,6 +930,10 @@ function playBattlePreview() {
 }
 
 function toggleQuest(i) {
+  if (isViewingFuture()) {
+    toast('⏳', '미래 퀘스트는 해당 날짜가 된 뒤 완료할 수 있어요!');
+    return;
+  }
   const q = todayQuests[i];
   if (q.done) {
     toast('✅', '이미 완료한 퀘스트입니다!');
@@ -936,6 +979,10 @@ function closeConfirmModal() {
 }
 
 function deleteQuest(i) {
+  if (isViewingPast()) {
+    toast('📅', '과거 퀘스트는 삭제할 수 없어요!');
+    return;
+  }
   if (todayQuests[i].done) S.xp = Math.max(0, S.xp - (todayQuests[i].xpAwarded ?? DIFF_XP[todayQuests[i].diff]));
   todayQuests.splice(i, 1);
   LS.set(todayKey(), todayQuests);
@@ -1016,7 +1063,7 @@ function switchTab(name, btn) {
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('panel-'+name).classList.add('active');
-  btn.classList.add('active');
+  if (btn) btn.classList.add('active');
   if (name==='calendar') renderCalendar();
   if (name==='shop') { renderShop(); document.getElementById('coins-shop').textContent = S.coins; }
 }
@@ -1073,7 +1120,8 @@ function calClickDay(d) {
     <div class="stat-chip"><div class="stat-num">${done}</div><div class="stat-lbl">완료</div></div>
     <div class="stat-chip"><div class="stat-num">${qs.length}</div><div class="stat-lbl">전체</div></div>
     <div class="stat-chip"><div class="stat-num">${qs.reduce((a,q)=>q.done?a+(q.xpAwarded ?? DIFF_XP[q.diff]):a,0)}</div><div class="stat-lbl">획득 XP</div></div>
-  </div>`;
+  </div>
+  <button class="btn-close" style="width:100%;padding:7px 10px;margin-bottom:8px;font-size:12px" onclick="openQuestDate(${calState.y},${calState.m},${d})">이 날짜 퀘스트 열기</button>`;
   if (!qs.length) {
     inner += `<div style="font-size:12px;color:var(--txt3);text-align:center;padding:8px">기록된 퀘스트가 없습니다.</div>`;
   } else {
