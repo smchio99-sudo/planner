@@ -1585,14 +1585,21 @@ async function characterShopAct(id) {
   if (firebaseEnabled) {
     if (!currentUser) { showAuthModal(true); return; }
     try {
-      const result = await callGameFunction(owned ? 'equipSkin' : 'buySkin', {skinId: id});
+      const result = await callGameFunction('buySkin', {skinId: id});
       S = cleanState(result.profile);
       preloadBattleFrames(id);
       updateStatBar();
       renderShop();
       toast('✨', owned ? `${skin.name} 장착!` : `${skin.name} 캐릭터 구매!`);
     } catch (err) {
-      toast('❌', firebaseMessage(err));
+      const message = firebaseMessage(err);
+      try {
+        const ensured = await callGameFunction('ensureUserProfile');
+        S = cleanState(ensured.profile);
+        updateStatBar();
+        renderShop();
+      } catch {}
+      toast('❌', message);
     }
     return;
   }
