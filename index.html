@@ -593,17 +593,95 @@ const XP_BASE = 100; // xp needed = level * XP_BASE
 const DAILY_XP_MAX = 200;
 
 // ─── state ───
-let S = {level:1, xp:0, coins:0, equippedCharacterSkin:'default', ownedCharacterSkins:['default']};
+const DEFAULT_STATE = {level:1, xp:0, coins:0, equippedCharacterSkin:'default', ownedCharacterSkins:['default']};
+let S = {...DEFAULT_STATE, ownedCharacterSkins:[...DEFAULT_STATE.ownedCharacterSkins]};
 let todayQuests = [];
 let calState = {y: new Date().getFullYear(), m: new Date().getMonth()};
 let selCalDay = null;
 let viewDate = new Date(); // currently viewed date in TODAY tab
 
 // ─── storage helpers ───
+const STATE_KEY = 'sq_state';
+const STATE_SIG_KEY = 'sq_state_sig';
+const STATE_SIGNED_MARK_KEY = 'sq_state_signed_once';
+const STATE_SIG_SALT = 'study-quest-battle-v2';
 const LS = {
   get: (k, def) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } },
   set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
+
+function stableStringify(value) {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map(k => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function hashString(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(36);
+}
+
+function stateSignature(state) {
+  return hashString(`${STATE_SIG_SALT}:${stableStringify(state)}`);
+}
+
+function cleanState(raw) {
+  const validIds = CHARACTER_SKINS.map(s => s.id);
+  const state = {...DEFAULT_STATE, ...(raw && typeof raw === 'object' ? raw : {})};
+  state.level = Number.isFinite(+state.level) ? Math.max(1, Math.floor(+state.level)) : 1;
+  state.coins = Number.isFinite(+state.coins) ? Math.max(0, Math.floor(+state.coins)) : 0;
+  state.xp = Number.isFinite(+state.xp) ? Math.max(0, Math.floor(+state.xp)) : 0;
+  const maxXp = state.level * XP_BASE;
+  if (state.xp >= maxXp) state.xp = maxXp - 1;
+  state.ownedCharacterSkins = Array.isArray(state.ownedCharacterSkins)
+    ? state.ownedCharacterSkins.filter(id => validIds.includes(id))
+    : ['default'];
+  if (!state.ownedCharacterSkins.includes('default')) state.ownedCharacterSkins.unshift('default');
+  if (!validIds.includes(state.equippedCharacterSkin) || !state.ownedCharacterSkins.includes(state.equippedCharacterSkin)) {
+    state.equippedCharacterSkin = 'default';
+  }
+  state.moneyEggClaimed = !!state.moneyEggClaimed;
+  state.handsomeEggClaimed = !!state.handsomeEggClaimed;
+  if (typeof state.playerName !== 'string') delete state.playerName;
+  if (typeof state.motto !== 'string') delete state.motto;
+  return state;
+}
+
+function isSuspiciousUnsignedState(state) {
+  return state.coins > 5000 || state.level > 50 || state.xp >= state.level * XP_BASE;
+}
+
+function loadState() {
+  const raw = LS.get(STATE_KEY, null);
+  if (!raw) return {state: cleanState(DEFAULT_STATE), tampered: false};
+  const savedSig = localStorage.getItem(STATE_SIG_KEY);
+  const signedBefore = localStorage.getItem(STATE_SIGNED_MARK_KEY) === '1';
+  if (!savedSig && signedBefore) {
+    return {state: cleanState(DEFAULT_STATE), tampered: true};
+  }
+  if (savedSig && savedSig !== stateSignature(raw)) {
+    return {state: cleanState(DEFAULT_STATE), tampered: true};
+  }
+  const state = cleanState(raw);
+  if (!savedSig && isSuspiciousUnsignedState(state)) {
+    return {state: cleanState(DEFAULT_STATE), tampered: true};
+  }
+  return {state, tampered: false};
+}
+
+function saveState() {
+  const clean = cleanState(S);
+  S = clean;
+  LS.set(STATE_KEY, S);
+  try { localStorage.setItem(STATE_SIG_KEY, stateSignature(S)); } catch {}
+  try { localStorage.setItem(STATE_SIGNED_MARK_KEY, '1'); } catch {}
+}
 
 function lockBrowserGestures() {
   document.addEventListener('contextmenu', e => e.preventDefault());
@@ -646,7 +724,9 @@ function dateKey(y,m,d) { return `sq_q_${y}-${pad(m+1)}-${pad(d)}`; }
 // ─── init ───
 function init() {
   lockBrowserGestures();
-  S = LS.get('sq_state', S);
+  const loadedState = loadState();
+  S = loadedState.state;
+  saveState();
   if (!S.ownedCharacterSkins) S.ownedCharacterSkins = ['default'];
   if (!S.ownedCharacterSkins.includes('default')) S.ownedCharacterSkins.unshift('default');
   if (!S.equippedCharacterSkin) S.equippedCharacterSkin = 'default';
@@ -671,6 +751,9 @@ function init() {
   if (!localStorage.getItem('sq_intro_seen')) {
     document.getElementById('intro-modal-bg').classList.add('show');
   }
+  if (loadedState.tampered) {
+    setTimeout(() => toast('🛡️', '비정상 저장값이 감지되어 상태를 초기화했어요.'), 700);
+  }
 }
 
 // ─── intro modal ───
@@ -692,7 +775,7 @@ function saveMotto() {
   const val = document.getElementById('motto-input').value.trim();
   if (!val) return;
   S.motto = val;
-  LS.set('sq_state', S);
+  saveState();
   document.getElementById('motto-text').textContent = val;
   closeMottoModal();
   toast('✍️', '명언이 저장됐어요!');
@@ -964,7 +1047,7 @@ function confirmQuestAction() {
   playBattleReward(awardedXp);
   gainXp(awardedXp, q.diff);
   LS.set(todayKey(), todayQuests);
-  LS.set('sq_state', S);
+  saveState();
   renderQuests();
   updateStatBar();
   closeConfirmModal();
@@ -986,7 +1069,7 @@ function deleteQuest(i) {
   if (todayQuests[i].done) S.xp = Math.max(0, S.xp - (todayQuests[i].xpAwarded ?? DIFF_XP[todayQuests[i].diff]));
   todayQuests.splice(i, 1);
   LS.set(todayKey(), todayQuests);
-  LS.set('sq_state', S);
+  saveState();
   renderQuests();
   updateStatBar();
 }
@@ -1001,7 +1084,7 @@ function gainXp(amount, diff) {
     S.level++;
     const coinReward = S.level * 5 + 10;
     S.coins += coinReward;
-    LS.set('sq_state', S);
+    saveState();
     updateStatBar();
     setTimeout(()=>showLevelUp(coinReward), 600);
   }
@@ -1040,7 +1123,7 @@ function saveName() {
     S.handsomeEggClaimed = true;
     eggMessage = '이스터에그 발견! +2000 코인';
   }
-  LS.set('sq_state', S);
+  saveState();
   document.getElementById('player-name').textContent = val;
   updateStatBar();
   closeNameModal();
@@ -1174,7 +1257,7 @@ function characterShopAct(id) {
   }
   S.equippedCharacterSkin = id;
   preloadBattleFrames(id);
-  LS.set('sq_state', S);
+  saveState();
   updateStatBar();
   renderShop();
 }
