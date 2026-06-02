@@ -949,7 +949,6 @@ async function init() {
   document.getElementById('name-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveName(); });
   document.getElementById('motto-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveMotto(); });
   if (await initFirebase()) {
-    showAuthModal(!auth.currentUser);
     updateAuthStatus();
     updatePastBanner();
     renderQuests();
