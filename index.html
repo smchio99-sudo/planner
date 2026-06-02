@@ -318,6 +318,8 @@ body::before{
   font-size:13px;color:var(--txt);background:var(--bg3);font-family:inherit;outline:none;margin-top:8px}
 .auth-input:focus{border-color:var(--accent)}
 .auth-actions{display:flex;gap:8px;margin-top:14px}
+.auth-link{border:0;background:transparent;color:var(--accent);font-family:inherit;
+  font-size:12px;text-decoration:underline;cursor:pointer;margin-top:10px;padding:0}
 .auth-note{font-size:11px;color:var(--txt3);line-height:1.5;margin-top:12px}
 .auth-error{min-height:18px;font-size:11px;color:var(--red);margin-top:8px}
 
@@ -459,6 +461,7 @@ body::before{
     <button class="btn-cancel" onclick="signUpWithEmail()">회원가입</button>
     <button class="btn-confirm-name" onclick="signInWithEmail()">로그인</button>
   </div>
+  <button class="auth-link" onclick="resetPasswordWithEmail()">비밀번호를 잊었어요</button>
   <div class="auth-note" id="auth-note">Firebase 설정을 켜면 로그인이 필요합니다.</div>
 </div>
 </div>
@@ -891,6 +894,22 @@ async function signUpWithEmail() {
       document.getElementById('auth-email').value.trim(),
       document.getElementById('auth-password').value
     );
+  } catch (err) {
+    setAuthError(firebaseMessage(err));
+  }
+}
+
+async function resetPasswordWithEmail() {
+  if (!firebaseEnabled) { setAuthError('firebase-config.js에서 Firebase 설정을 먼저 켜주세요.'); return; }
+  const email = document.getElementById('auth-email').value.trim();
+  if (!email) {
+    setAuthError('비밀번호를 재설정할 이메일을 입력하세요.');
+    return;
+  }
+  setAuthError('');
+  try {
+    await auth.sendPasswordResetEmail(email);
+    setAuthError('비밀번호 재설정 메일을 보냈어요. 메일함을 확인하세요.');
   } catch (err) {
     setAuthError(firebaseMessage(err));
   }
