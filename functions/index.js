@@ -7,6 +7,8 @@ const db = admin.firestore();
 const DIFF_XP = { easy: 15, normal: 30, hard: 60 };
 const XP_BASE = 100;
 const DAILY_XP_MAX = 200;
+const MAX_SERVER_LEVEL = 50;
+const MAX_SERVER_COINS = 5000;
 
 const CHARACTER_SKINS = [
   { id: "default", price: 0 },
@@ -81,6 +83,26 @@ function cleanProfile(raw = {}) {
   return profile;
 }
 
+function hasInvalidEconomy(profile) {
+  return profile.level > MAX_SERVER_LEVEL ||
+    profile.coins > MAX_SERVER_COINS ||
+    profile.xp >= profile.level * XP_BASE ||
+    profile.ownedCharacterSkins.length > CHARACTER_SKINS.length;
+}
+
+function secureProfile(raw = {}) {
+  const profile = cleanProfile(raw);
+  if (!hasInvalidEconomy(profile)) return { profile, reset: false };
+  return {
+    profile: cleanProfile({
+      ...DEFAULT_PROFILE,
+      playerName: profile.playerName,
+      motto: profile.motto
+    }),
+    reset: true
+  };
+}
+
 function profileRef(uid) {
   return db.doc(`users/${uid}/private/profile`);
 }
@@ -92,7 +114,17 @@ function dayRef(uid, date) {
 async function ensureProfile(uid, tx) {
   const ref = profileRef(uid);
   const snap = await tx.get(ref);
-  if (snap.exists) return { ref, profile: cleanProfile(snap.data()) };
+  if (snap.exists) {
+    const { profile, reset } = secureProfile(snap.data());
+    if (reset) {
+      tx.set(ref, {
+        ...profile,
+        securityResetAt: admin.firestore.FieldValue.serverTimestamp(),
+        securityResetReason: "invalid-economy"
+      }, { merge: true });
+    }
+    return { ref, profile };
+  }
   const profile = cleanProfile(DEFAULT_PROFILE);
   tx.set(ref, { ...profile, createdAt: admin.firestore.FieldValue.serverTimestamp() });
   return { ref, profile };
@@ -164,11 +196,9 @@ exports.completeQuest = onCall(async (request) => {
   const id = cleanText(request.data.questId, 80);
 
   return db.runTransaction(async (tx) => {
-    const profileDoc = profileRef(uid);
+    const { ref: profileDoc, profile } = await ensureProfile(uid, tx);
     const ref = dayRef(uid, date);
-    const profileSnap = await tx.get(profileDoc);
     const snap = await tx.get(ref);
-    const profile = profileSnap.exists ? cleanProfile(profileSnap.data()) : cleanProfile(DEFAULT_PROFILE);
     const items = snap.exists && Array.isArray(snap.data().items) ? snap.data().items : [];
     const index = items.findIndex((item) => item.id === id);
     if (index < 0) throw new HttpsError("not-found", "Quest not found.");
