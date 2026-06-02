@@ -818,7 +818,7 @@ async function loadRemoteApp() {
     updatePastBanner();
     renderCalendar();
     renderShop();
-    toast('🔐', 'Firebase 계정 데이터를 불러왔어요.');
+    toast('🔐', '계정을 불러왔어요.');
   } catch (err) {
     setAuthError(firebaseMessage(err));
   }
@@ -1316,21 +1316,33 @@ async function confirmQuestAction() {
   }
   if (firebaseEnabled) {
     if (!currentUser) { showAuthModal(true); closeConfirmModal(); return; }
+    const date = questDateId();
+    const originalItems = todayQuests.map(item => ({...item}));
+    const amount = DIFF_XP[q.diff] || 0;
+    const earned = todayEarnedXp();
+    const optimisticAwardedXp = earned + amount > DAILY_XP_MAX ? 0 : amount;
+    q.done = true;
+    q.xpAwarded = optimisticAwardedXp;
+    closeConfirmModal();
+    playBattleReward(optimisticAwardedXp);
+    renderQuests();
     try {
-      const result = await callGameFunction('completeQuest', {date: questDateId(), questId: q.id});
+      const result = await callGameFunction('completeQuest', {date, questId: q.id});
       S = cleanState(result.profile);
-      await setRemoteQuestCache(questDateId(), result.items);
-      playBattleReward(result.awardedXp || 0);
+      await setRemoteQuestCache(date, result.items);
       renderQuests();
       updateStatBar();
       renderCalendar();
-      closeConfirmModal();
       if (result.levelRewardCoins) setTimeout(()=>showLevelUp(result.levelRewardCoins), 600);
       if (todayQuests.length && todayQuests.every(item=>item.done)) {
         setTimeout(()=>toast('🏆','모든 퀘스트 완료!'), 400);
       }
     } catch (err) {
-      closeConfirmModal();
+      todayQuests = originalItems;
+      await setRemoteQuestCache(date, originalItems);
+      renderQuests();
+      renderCalendar();
+      updateStatBar();
       toast('❌', firebaseMessage(err));
     }
     return;
