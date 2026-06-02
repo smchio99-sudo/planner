@@ -305,6 +305,21 @@ body::before{
 .btn-confirm-name{flex:1;padding:9px;border:none;border-radius:var(--radius);
   background:var(--accent);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s}
 .btn-confirm-name:hover{background:#4a7ddc}
+.auth-status{display:none;align-items:center;gap:6px;margin-left:auto;font-size:11px;color:var(--txt3)}
+.auth-status.show{display:flex}
+.auth-status button{border:1px solid var(--border);background:var(--bg3);border-radius:6px;
+  padding:3px 8px;font-size:11px;color:var(--txt2);cursor:pointer;font-family:inherit}
+.auth-modal{background:#fff;border:1px solid var(--border2);border-radius:20px;
+  padding:26px 30px;text-align:center;animation:popIn .3s cubic-bezier(.34,1.56,.64,1);
+  max-width:340px;width:90%;position:relative;overflow:hidden}
+.auth-modal::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--accent),var(--accent2),var(--gold))}
+.auth-input{width:100%;padding:10px 12px;border:1px solid var(--border2);border-radius:var(--radius);
+  font-size:13px;color:var(--txt);background:var(--bg3);font-family:inherit;outline:none;margin-top:8px}
+.auth-input:focus{border-color:var(--accent)}
+.auth-actions{display:flex;gap:8px;margin-top:14px}
+.auth-note{font-size:11px;color:var(--txt3);line-height:1.5;margin-top:12px}
+.auth-error{min-height:18px;font-size:11px;color:var(--red);margin-top:8px}
 
 /* ─── confirm modal (퀘스트 완료 확인) ─── */
 .confirm-modal{background:#ffffff;border:1px solid var(--border2);border-radius:20px;
@@ -431,6 +446,23 @@ body::before{
 </div>
 </div>
 
+<!-- auth modal -->
+<div class="modal-bg" id="auth-modal-bg">
+<div class="auth-modal" onclick="event.stopPropagation()">
+  <div style="font-size:28px;margin-bottom:6px">🔐</div>
+  <div class="name-modal-title">Study Quest 로그인</div>
+  <div class="name-modal-sub">계정에 코인, 경험치, 스킨, 퀘스트를 저장합니다.</div>
+  <input class="auth-input" id="auth-email" type="email" autocomplete="email" placeholder="이메일">
+  <input class="auth-input" id="auth-password" type="password" autocomplete="current-password" placeholder="비밀번호">
+  <div class="auth-error" id="auth-error"></div>
+  <div class="auth-actions">
+    <button class="btn-cancel" onclick="signUpWithEmail()">회원가입</button>
+    <button class="btn-confirm-name" onclick="signInWithEmail()">로그인</button>
+  </div>
+  <div class="auth-note" id="auth-note">Firebase 설정을 켜면 로그인이 필요합니다.</div>
+</div>
+</div>
+
 <!-- quest confirm modal -->
 <div class="modal-bg" id="confirm-modal-bg">
 <div class="confirm-modal" onclick="event.stopPropagation()">
@@ -484,6 +516,10 @@ body::before{
       <div class="coins-badge">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" fill="var(--bg)" font-size="11" font-weight="700">₩</text></svg>
         <span id="coins-hdr">0</span> 코인
+      </div>
+      <div class="auth-status" id="auth-status">
+        <span id="auth-email-label"></span>
+        <button onclick="signOutUser()">로그아웃</button>
       </div>
     </div>
     <div class="motto-wrap">
@@ -576,6 +612,11 @@ body::before{
 
 </div><!-- /app -->
 
+<script src="firebase-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-functions-compat.js"></script>
 <script>
 // ─── constants ───
 const CHARACTER_SKINS = [
@@ -599,6 +640,14 @@ let todayQuests = [];
 let calState = {y: new Date().getFullYear(), m: new Date().getMonth()};
 let selCalDay = null;
 let viewDate = new Date(); // currently viewed date in TODAY tab
+let firebaseEnabled = false;
+let auth = null;
+let db = null;
+let cloudFunctions = null;
+let currentUser = null;
+let remoteQuestCache = {};
+let remoteMonthLoading = {};
+let remoteMonthLoaded = {};
 
 // ─── storage helpers ───
 const STATE_KEY = 'sq_state';
@@ -683,6 +732,174 @@ function saveState() {
   try { localStorage.setItem(STATE_SIGNED_MARK_KEY, '1'); } catch {}
 }
 
+function hasFirebaseConfig() {
+  const cfg = window.STUDY_QUEST_FIREBASE_CONFIG;
+  return !!(window.STUDY_QUEST_USE_FIREBASE && cfg && cfg.apiKey && !cfg.apiKey.startsWith('PASTE_'));
+}
+
+function userProfileRef() {
+  return db.collection('users').doc(currentUser.uid).collection('private').doc('profile');
+}
+
+function questDayRef(date) {
+  return db.collection('users').doc(currentUser.uid).collection('questDays').doc(date);
+}
+
+function showAuthModal(show = true) {
+  document.getElementById('auth-modal-bg').classList.toggle('show', show);
+}
+
+function setAuthError(message = '') {
+  document.getElementById('auth-error').textContent = message;
+}
+
+function updateAuthStatus() {
+  const el = document.getElementById('auth-status');
+  const label = document.getElementById('auth-email-label');
+  if (!firebaseEnabled || !currentUser) {
+    el.classList.remove('show');
+    label.textContent = '';
+    return;
+  }
+  label.textContent = currentUser.email || '로그인됨';
+  el.classList.add('show');
+}
+
+async function callGameFunction(name, data = {}) {
+  if (!firebaseEnabled || !currentUser) throw new Error('Firebase login required.');
+  const callable = cloudFunctions.httpsCallable(name);
+  const result = await callable(data);
+  return result.data || {};
+}
+
+async function initFirebase() {
+  if (!hasFirebaseConfig() || !window.firebase) return false;
+  firebase.initializeApp(window.STUDY_QUEST_FIREBASE_CONFIG);
+  auth = firebase.auth();
+  db = firebase.firestore();
+  cloudFunctions = firebase.functions();
+  firebaseEnabled = true;
+  document.getElementById('auth-note').textContent = '로그인하면 서버에 저장된 데이터를 불러옵니다.';
+  auth.onAuthStateChanged(async user => {
+    currentUser = user;
+    updateAuthStatus();
+    if (!user) {
+      S = cleanState(DEFAULT_STATE);
+      todayQuests = [];
+      updateStatBar();
+      renderQuests();
+      renderShop();
+      showAuthModal(true);
+      return;
+    }
+    showAuthModal(false);
+    await loadRemoteApp();
+  });
+  return true;
+}
+
+async function loadRemoteApp() {
+  try {
+    const ensured = await callGameFunction('ensureUserProfile');
+    S = cleanState(ensured.profile);
+    remoteQuestCache = {};
+    remoteMonthLoading = {};
+    remoteMonthLoaded = {};
+    viewDate = new Date();
+    todayQuests = await loadRemoteQuests(todayKey());
+    document.getElementById('player-name').textContent = S.playerName || '모험가';
+    document.getElementById('motto-text').textContent = S.motto || '✨ 오늘도 한 걸음씩!';
+    updateStatBar();
+    renderQuests();
+    updateDateStr();
+    updatePastBanner();
+    renderCalendar();
+    renderShop();
+    toast('🔐', 'Firebase 계정 데이터를 불러왔어요.');
+  } catch (err) {
+    setAuthError(firebaseMessage(err));
+  }
+}
+
+async function loadRemoteQuests(key) {
+  if (!firebaseEnabled || !currentUser) return LS.get(key, []);
+  if (remoteQuestCache[key]) return remoteQuestCache[key];
+  const snap = await questDayRef(key.replace('sq_q_', '')).get();
+  const items = snap.exists && Array.isArray(snap.data().items) ? snap.data().items : [];
+  remoteQuestCache[key] = items;
+  return items;
+}
+
+async function setRemoteQuestCache(date, items) {
+  const key = date.startsWith('sq_q_') ? date : `sq_q_${date}`;
+  remoteQuestCache[key] = Array.isArray(items) ? items : [];
+  if (key === todayKey()) todayQuests = remoteQuestCache[key];
+}
+
+async function loadQuestsForViewDate() {
+  todayQuests = firebaseEnabled && currentUser ? await loadRemoteQuests(todayKey()) : LS.get(todayKey(), []);
+}
+
+async function loadRemoteMonth(y, m) {
+  if (!firebaseEnabled || !currentUser) return;
+  const monthKey = `${y}-${pad(m+1)}`;
+  if (remoteMonthLoaded[monthKey]) return;
+  if (remoteMonthLoading[monthKey]) return remoteMonthLoading[monthKey];
+  remoteMonthLoading[monthKey] = (async () => {
+    const start = `${monthKey}-01`;
+    const end = `${monthKey}-31`;
+    const snap = await db.collection('users').doc(currentUser.uid).collection('questDays')
+      .where(firebase.firestore.FieldPath.documentId(), '>=', start)
+      .where(firebase.firestore.FieldPath.documentId(), '<=', end)
+      .get();
+    snap.forEach(doc => {
+      remoteQuestCache[`sq_q_${doc.id}`] = Array.isArray(doc.data().items) ? doc.data().items : [];
+    });
+    remoteMonthLoaded[monthKey] = true;
+  })();
+  return remoteMonthLoading[monthKey];
+}
+
+function firebaseMessage(err) {
+  const code = err && err.code ? err.code : '';
+  if (code.includes('auth/email-already-in-use')) return '이미 가입된 이메일입니다.';
+  if (code.includes('auth/invalid-email')) return '이메일 형식이 올바르지 않습니다.';
+  if (code.includes('auth/weak-password')) return '비밀번호는 6자 이상으로 입력하세요.';
+  if (code.includes('auth/invalid-credential') || code.includes('auth/wrong-password')) return '이메일 또는 비밀번호가 맞지 않습니다.';
+  if (code.includes('functions/failed-precondition')) return err.message || '조건을 만족하지 않아 처리할 수 없습니다.';
+  return err && err.message ? err.message : '처리 중 오류가 발생했습니다.';
+}
+
+async function signInWithEmail() {
+  if (!firebaseEnabled) { setAuthError('firebase-config.js에서 Firebase 설정을 먼저 켜주세요.'); return; }
+  setAuthError('');
+  try {
+    await auth.signInWithEmailAndPassword(
+      document.getElementById('auth-email').value.trim(),
+      document.getElementById('auth-password').value
+    );
+  } catch (err) {
+    setAuthError(firebaseMessage(err));
+  }
+}
+
+async function signUpWithEmail() {
+  if (!firebaseEnabled) { setAuthError('firebase-config.js에서 Firebase 설정을 먼저 켜주세요.'); return; }
+  setAuthError('');
+  try {
+    await auth.createUserWithEmailAndPassword(
+      document.getElementById('auth-email').value.trim(),
+      document.getElementById('auth-password').value
+    );
+  } catch (err) {
+    setAuthError(firebaseMessage(err));
+  }
+}
+
+async function signOutUser() {
+  if (auth) await auth.signOut();
+}
+
 function lockBrowserGestures() {
   document.addEventListener('contextmenu', e => e.preventDefault());
   document.addEventListener('dragstart', e => e.preventDefault());
@@ -694,6 +911,9 @@ function lockBrowserGestures() {
 
 function todayKey() {
   return dateKey(viewDate.getFullYear(), viewDate.getMonth(), viewDate.getDate());
+}
+function questDateId() {
+  return todayKey().replace('sq_q_', '');
 }
 function realTodayKey() {
   const d = new Date();
@@ -722,8 +942,21 @@ function pad(n) { return String(n).padStart(2,'0'); }
 function dateKey(y,m,d) { return `sq_q_${y}-${pad(m+1)}-${pad(d)}`; }
 
 // ─── init ───
-function init() {
+async function init() {
   lockBrowserGestures();
+  setupBattlePreviewClick();
+  document.getElementById('q-input').addEventListener('keydown', e => { if (e.key === 'Enter') addQuest(); });
+  document.getElementById('name-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveName(); });
+  document.getElementById('motto-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveMotto(); });
+  if (await initFirebase()) {
+    showAuthModal(!auth.currentUser);
+    updateAuthStatus();
+    updatePastBanner();
+    renderQuests();
+    renderCalendar();
+    renderShop();
+    return;
+  }
   const loadedState = loadState();
   S = loadedState.state;
   saveState();
@@ -739,10 +972,6 @@ function init() {
   updateDateStr();
   renderCalendar();
   renderShop();
-  document.getElementById('q-input').addEventListener('keydown', e => { if (e.key === 'Enter') addQuest(); });
-  document.getElementById('name-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveName(); });
-  document.getElementById('motto-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveMotto(); });
-  setupBattlePreviewClick();
   updatePastBanner();
   // 명언 적용
   const motto = S.motto || '✨ 오늘도 한 걸음씩!';
@@ -771,9 +1000,23 @@ function openMottoModal() {
 function closeMottoModal() {
   document.getElementById('motto-modal-bg').classList.remove('show');
 }
-function saveMotto() {
+async function saveMotto() {
   const val = document.getElementById('motto-input').value.trim();
   if (!val) return;
+  if (firebaseEnabled) {
+    if (!currentUser) { showAuthModal(true); return; }
+    try {
+      const result = await callGameFunction('updateProfileText', {motto: val});
+      S = cleanState(result.profile);
+      document.getElementById('motto-text').textContent = S.motto;
+      updateStatBar();
+      closeMottoModal();
+      toast('✍️', '명언이 저장됐어요!');
+    } catch (err) {
+      toast('❌', firebaseMessage(err));
+    }
+    return;
+  }
   S.motto = val;
   saveState();
   document.getElementById('motto-text').textContent = val;
@@ -782,23 +1025,23 @@ function saveMotto() {
 }
 
 // ─── day navigation ───
-function changeDay(delta) {
+async function changeDay(delta) {
   viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), viewDate.getDate() + delta);
-  todayQuests = LS.get(todayKey(), []);
+  await loadQuestsForViewDate();
   renderQuests();
   updateDateStr();
   updatePastBanner();
 }
-function goToday() {
+async function goToday() {
   viewDate = new Date();
-  todayQuests = LS.get(todayKey(), []);
+  await loadQuestsForViewDate();
   renderQuests();
   updateDateStr();
   updatePastBanner();
 }
-function openQuestDate(y, m, d) {
+async function openQuestDate(y, m, d) {
   viewDate = new Date(y, m, d);
-  todayQuests = LS.get(todayKey(), []);
+  await loadQuestsForViewDate();
   document.getElementById('cal-popup').classList.remove('show');
   switchTab('today', document.querySelector('.tab[onclick*="today"]'));
   renderQuests();
@@ -893,7 +1136,7 @@ function renderQuests() {
   updateDateStr();
 }
 
-function addQuest() {
+async function addQuest() {
   if (isViewingPast()) {
     toast('📅', '과거 날짜에는 새 퀘스트를 추가할 수 없어요!');
     return;
@@ -902,6 +1145,20 @@ function addQuest() {
   const text = inp.value.trim();
   if (!text) return;
   const diff = document.getElementById('diff-sel').value;
+  if (firebaseEnabled) {
+    if (!currentUser) { showAuthModal(true); return; }
+    try {
+      const result = await callGameFunction('addQuest', {date: questDateId(), text, diff});
+      await setRemoteQuestCache(questDateId(), result.items);
+      inp.value = '';
+      renderQuests();
+      renderCalendar();
+      toast('📌', '퀘스트 추가!');
+    } catch (err) {
+      toast('❌', firebaseMessage(err));
+    }
+    return;
+  }
   todayQuests.push({text, diff, done: false});
   inp.value = '';
   LS.set(todayKey(), todayQuests);
@@ -1032,11 +1289,32 @@ function toggleQuest(i) {
   document.getElementById('confirm-modal-bg').classList.add('show');
 }
 
-function confirmQuestAction() {
+async function confirmQuestAction() {
   if (pendingQuestIdx === null) return;
   const q = todayQuests[pendingQuestIdx];
   if (!q || q.done) {
     closeConfirmModal();
+    return;
+  }
+  if (firebaseEnabled) {
+    if (!currentUser) { showAuthModal(true); closeConfirmModal(); return; }
+    try {
+      const result = await callGameFunction('completeQuest', {date: questDateId(), questId: q.id});
+      S = cleanState(result.profile);
+      await setRemoteQuestCache(questDateId(), result.items);
+      playBattleReward(result.awardedXp || 0);
+      renderQuests();
+      updateStatBar();
+      renderCalendar();
+      closeConfirmModal();
+      if (result.levelRewardCoins) setTimeout(()=>showLevelUp(result.levelRewardCoins), 600);
+      if (todayQuests.length && todayQuests.every(item=>item.done)) {
+        setTimeout(()=>toast('🏆','모든 퀘스트 완료!'), 400);
+      }
+    } catch (err) {
+      closeConfirmModal();
+      toast('❌', firebaseMessage(err));
+    }
     return;
   }
   const amount = DIFF_XP[q.diff];
@@ -1061,9 +1339,23 @@ function closeConfirmModal() {
   pendingQuestIdx = null;
 }
 
-function deleteQuest(i) {
+async function deleteQuest(i) {
   if (isViewingPast()) {
     toast('📅', '과거 퀘스트는 삭제할 수 없어요!');
+    return;
+  }
+  if (firebaseEnabled) {
+    if (!currentUser) { showAuthModal(true); return; }
+    try {
+      const q = todayQuests[i];
+      const result = await callGameFunction('deleteQuest', {date: questDateId(), questId: q.id});
+      await setRemoteQuestCache(questDateId(), result.items);
+      renderQuests();
+      renderCalendar();
+      toast('🗑️', '퀘스트 삭제!');
+    } catch (err) {
+      toast('❌', firebaseMessage(err));
+    }
     return;
   }
   if (todayQuests[i].done) S.xp = Math.max(0, S.xp - (todayQuests[i].xpAwarded ?? DIFF_XP[todayQuests[i].diff]));
@@ -1108,9 +1400,23 @@ function openNameModal() {
 function closeNameModal() {
   document.getElementById('name-modal-bg').classList.remove('show');
 }
-function saveName() {
+async function saveName() {
   const val = document.getElementById('name-input').value.trim();
   if (!val) return;
+  if (firebaseEnabled) {
+    if (!currentUser) { showAuthModal(true); return; }
+    try {
+      const result = await callGameFunction('updateProfileText', {playerName: val});
+      S = cleanState(result.profile);
+      document.getElementById('player-name').textContent = S.playerName;
+      updateStatBar();
+      closeNameModal();
+      toast(result.eggMessage ? '🪙' : '✏️', result.eggMessage || `이름이 "${val}"(으)로 변경됐어요!`);
+    } catch (err) {
+      toast('❌', firebaseMessage(err));
+    }
+    return;
+  }
   S.playerName = val;
   let eggMessage = '';
   if (val === '돈내놔' && !S.moneyEggClaimed) {
@@ -1164,6 +1470,15 @@ function changeMonth(d) {
 function renderCalendar() {
   const months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
   document.getElementById('cal-title').textContent = `${calState.y}년 ${months[calState.m]}`;
+  if (firebaseEnabled && currentUser) {
+    const monthKey = `${calState.y}-${pad(calState.m+1)}`;
+    if (!remoteMonthLoaded[monthKey] && !remoteMonthLoading[monthKey]) loadRemoteMonth(calState.y, calState.m).then(() => {
+      if (remoteMonthLoading[monthKey]) {
+        delete remoteMonthLoading[monthKey];
+        renderCalendar();
+      }
+    }).catch(err => toast('❌', firebaseMessage(err)));
+  }
   const first = new Date(calState.y, calState.m, 1).getDay();
   const daysInMonth = new Date(calState.y, calState.m+1, 0).getDate();
   const today = new Date();
@@ -1171,7 +1486,7 @@ function renderCalendar() {
   for (let i=0;i<first;i++) html += `<div class="cal-day empty"></div>`;
   for (let d=1;d<=daysInMonth;d++) {
     const key = dateKey(calState.y, calState.m, d);
-    const qs = LS.get(key, []);
+    const qs = firebaseEnabled && currentUser ? (remoteQuestCache[key] || []) : LS.get(key, []);
     const isToday = calState.y===today.getFullYear()&&calState.m===today.getMonth()&&d===today.getDate();
     const hasDot = qs.length > 0;
     const fullDone = hasDot && qs.every(q=>q.done);
@@ -1186,7 +1501,7 @@ function renderCalendar() {
 
 function calClickDay(d) {
   const key = dateKey(calState.y, calState.m, d);
-  const qs = LS.get(key, []);
+  const qs = firebaseEnabled && currentUser ? (remoteQuestCache[key] || []) : LS.get(key, []);
   const popup = document.getElementById('cal-popup');
   if (selCalDay === d) {
     selCalDay = null;
@@ -1246,9 +1561,23 @@ function renderShop() {
   }).join('');
 }
 
-function characterShopAct(id) {
+async function characterShopAct(id) {
   const skin = characterSkinById(id);
   const owned = S.ownedCharacterSkins.includes(id);
+  if (firebaseEnabled) {
+    if (!currentUser) { showAuthModal(true); return; }
+    try {
+      const result = await callGameFunction(owned ? 'equipSkin' : 'buySkin', {skinId: id});
+      S = cleanState(result.profile);
+      preloadBattleFrames(id);
+      updateStatBar();
+      renderShop();
+      toast('✨', owned ? `${skin.name} 장착!` : `${skin.name} 캐릭터 구매!`);
+    } catch (err) {
+      toast('❌', firebaseMessage(err));
+    }
+    return;
+  }
   if (!owned) {
     if (S.coins < skin.price) { toast('❌','코인이 부족합니다!'); return; }
     S.coins -= skin.price;
