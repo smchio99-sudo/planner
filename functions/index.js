@@ -5,7 +5,7 @@ admin.initializeApp();
 const db = admin.firestore();
 
 const DIFF_XP = { easy: 15, normal: 30, hard: 60 };
-const XP_BASE = 100;
+const XP_PER_LEVEL = 100;
 const DAILY_XP_MAX = 200;
 const MAX_SERVER_LEVEL = 50;
 const MAX_SERVER_COINS = 5000;
@@ -68,6 +68,7 @@ function cleanProfile(raw = {}) {
   const profile = { ...DEFAULT_PROFILE, ...raw };
   profile.level = Number.isFinite(+profile.level) ? Math.max(1, Math.floor(+profile.level)) : 1;
   profile.xp = Number.isFinite(+profile.xp) ? Math.max(0, Math.floor(+profile.xp)) : 0;
+  if (profile.xp >= XP_PER_LEVEL) profile.xp = XP_PER_LEVEL - 1;
   profile.coins = Number.isFinite(+profile.coins) ? Math.max(0, Math.floor(+profile.coins)) : 0;
   profile.ownedCharacterSkins = Array.isArray(profile.ownedCharacterSkins)
     ? profile.ownedCharacterSkins.filter((id) => skinById(id))
@@ -86,7 +87,6 @@ function cleanProfile(raw = {}) {
 function hasInvalidEconomy(profile) {
   return profile.level > MAX_SERVER_LEVEL ||
     profile.coins > MAX_SERVER_COINS ||
-    profile.xp >= profile.level * XP_BASE ||
     profile.ownedCharacterSkins.length > CHARACTER_SKINS.length;
 }
 
@@ -133,10 +133,10 @@ async function ensureProfile(uid, tx) {
 function applyXp(profile, amount) {
   profile.xp += amount;
   let levelRewardCoins = 0;
-  while (profile.xp >= profile.level * XP_BASE) {
-    profile.xp -= profile.level * XP_BASE;
+  while (profile.xp >= XP_PER_LEVEL) {
+    profile.xp -= XP_PER_LEVEL;
     profile.level += 1;
-    const reward = profile.level * 5 + 10;
+    const reward = Math.min(profile.level * 5 + 20, 50);
     profile.coins += reward;
     levelRewardCoins += reward;
   }
