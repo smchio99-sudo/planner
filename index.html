@@ -633,7 +633,7 @@ const CHARACTER_SKINS = [
   {id:'jjaigeunwoo', name:'짜이근우', price:300, portrait:'assets/jjaigeunwoo-portrait.png', framePrefix:'jjaigeunwoo-battle-frame'},
 ];
 const DIFF_XP = {easy:15, normal:30, hard:60};
-const XP_BASE = 100; // xp needed = level * XP_BASE
+const XP_PER_LEVEL = 100;
 const DAILY_XP_MAX = 200;
 
 // ─── state ───
@@ -689,7 +689,7 @@ function cleanState(raw) {
   state.level = Number.isFinite(+state.level) ? Math.max(1, Math.floor(+state.level)) : 1;
   state.coins = Number.isFinite(+state.coins) ? Math.max(0, Math.floor(+state.coins)) : 0;
   state.xp = Number.isFinite(+state.xp) ? Math.max(0, Math.floor(+state.xp)) : 0;
-  const maxXp = state.level * XP_BASE;
+  const maxXp = XP_PER_LEVEL;
   if (state.xp >= maxXp) state.xp = maxXp - 1;
   state.ownedCharacterSkins = Array.isArray(state.ownedCharacterSkins)
     ? state.ownedCharacterSkins.filter(id => validIds.includes(id))
@@ -706,7 +706,7 @@ function cleanState(raw) {
 }
 
 function isSuspiciousUnsignedState(state) {
-  return state.coins > 5000 || state.level > 50 || state.xp >= state.level * XP_BASE;
+  return state.coins > 5000 || state.level > 50 || state.xp >= XP_PER_LEVEL;
 }
 
 function loadState() {
@@ -1088,7 +1088,7 @@ function updatePastBanner() {
 
 // ─── stat bar ───
 function updateStatBar() {
-  const maxXp = S.level * XP_BASE;
+  const maxXp = XP_PER_LEVEL;
   const pct = Math.min(100, Math.round(S.xp / maxXp * 100));
   document.getElementById('xp-fill').style.width = pct + '%';
   document.getElementById('xp-label').textContent = `${S.xp} / ${maxXp} XP`;
@@ -1400,11 +1400,11 @@ function gainXp(amount, diff) {
   S.xp += amount;
   const msgs = {easy:'쉬운 퀘스트 완료!', normal:'퀘스트 완료!', hard:'어려운 퀘스트 완료!'};
   toast('⭐', amount === 0 ? `+0XP — 하루 최대 ${DAILY_XP_MAX}XP 달성!` : `+${amount}XP — ${msgs[diff]||'완료!'}`);
-  const maxXp = S.level * XP_BASE;
-  if (S.xp >= maxXp) {
+  const maxXp = XP_PER_LEVEL;
+  while (S.xp >= maxXp) {
     S.xp -= maxXp;
     S.level++;
-    const coinReward = S.level * 5 + 10;
+    const coinReward = Math.min(S.level * 5 + 20, 50);
     S.coins += coinReward;
     saveState();
     updateStatBar();
