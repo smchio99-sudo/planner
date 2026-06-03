@@ -81,7 +81,12 @@ body::before{
 .battle-stage,.battle-stage *{-webkit-user-select:none;user-select:none;-webkit-user-drag:none;touch-action:manipulation}
 .battle-frame{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center bottom;
   image-rendering:auto;transition:transform .12s ease;pointer-events:none}
+.battle-frame-layer{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center bottom;
+  image-rendering:auto;transition:transform .12s ease;pointer-events:none;display:none}
+.battle-stage.separate .battle-frame{display:none}
+.battle-stage.separate .battle-frame-layer{display:block}
 .battle-stage.attacking .battle-frame{animation:battlePulse .96s ease both}
+.battle-stage.attacking .battle-frame-layer{animation:battlePulse .96s ease both}
 .battle-xp-pop{position:absolute;right:10px;top:2px;padding:2px 8px;border-radius:20px;
   background:rgba(255,255,255,.94);border:1px solid rgba(91,141,238,.3);
   color:var(--accent);font-size:11px;font-weight:800;opacity:0;transform:translateY(10px);
@@ -538,6 +543,8 @@ body::before{
   </div>
   <div class="battle-stage" id="battle-stage" aria-label="용사와 드래곤 전투 애니메이션" title="클릭하면 공격 모션 보기">
     <img class="battle-frame" id="battle-frame" src="assets/battle-frame-01.png" alt="">
+    <img class="battle-frame-layer" id="battle-character-frame" src="" alt="">
+    <img class="battle-frame-layer" id="battle-enemy-frame" src="" alt="">
     <span class="battle-xp-pop" id="battle-xp-pop">+0XP</span>
   </div>
 </div>
@@ -634,6 +641,8 @@ const CHARACTER_SKINS = [
   {id:'professor', name:'교수님', price:200, portrait:'assets/professor-portrait.png', framePrefix:'professor-battle-frame'},
   {id:'bunny', name:'바니걸', price:200, portrait:'assets/bunny-portrait.png', framePrefix:'bunny-battle-frame'},
   {id:'schoolgirl', name:'여고생', price:200, portrait:'assets/schoolgirl-portrait.png', framePrefix:'schoolgirl-battle-frame'},
+  {id:'mai', name:'시라누이 마이', price:500, portrait:'assets/mai-portrait.png', framePrefix:'mai-battle-frame', frameCount:16,
+    characterFramePrefix:'mai-character-frame', enemyFramePrefix:'mai-dragon-frame'},
 ];
 const DIFF_XP = {easy:15, normal:30, hard:60};
 const XP_PER_LEVEL = 100;
@@ -1105,10 +1114,9 @@ function updateStatBar() {
   avatar.innerHTML = equippedCharacter.portrait
     ? `<img src="${equippedCharacter.portrait}" alt="${equippedCharacter.name} 초상화">`
     : '';
-  const battleFrame = document.getElementById('battle-frame');
   const battleStage = document.getElementById('battle-stage');
-  if (battleFrame && (!battleStage || !battleStage.classList.contains('attacking'))) {
-    battleFrame.src = battleFramesForSkin(S.equippedCharacterSkin)[0];
+  if (!battleStage || !battleStage.classList.contains('attacking')) {
+    syncBattleIdleFrame();
   }
   if (S.playerName) document.getElementById('player-name').textContent = S.playerName;
   if (S.motto) document.getElementById('motto-text').textContent = S.motto;
@@ -1211,12 +1219,24 @@ function characterSkinById(id) {
 
 function battleFramesForSkin(id) {
   const skin = characterSkinById(id);
-  return Array.from({length: 8}, (_, i) => `assets/${skin.framePrefix}-${String(i + 1).padStart(2, '0')}.png`);
+  return Array.from({length: skin.frameCount || 8}, (_, i) => `assets/${skin.framePrefix}-${String(i + 1).padStart(2, '0')}.png`);
+}
+
+function layeredBattleFramesForSkin(id) {
+  const skin = characterSkinById(id);
+  if (!skin.characterFramePrefix || !skin.enemyFramePrefix) return null;
+  const count = skin.frameCount || 8;
+  return {
+    character: Array.from({length: count}, (_, i) => `assets/${skin.characterFramePrefix}-${String(i + 1).padStart(2, '0')}.png`),
+    enemy: Array.from({length: count}, (_, i) => `assets/${skin.enemyFramePrefix}-${String(i + 1).padStart(2, '0')}.png`)
+  };
 }
 
 const BATTLE_IMAGE_CACHE = {};
 function preloadBattleFrames(id) {
-  BATTLE_IMAGE_CACHE[id] = battleFramesForSkin(id).map(src => {
+  const layered = layeredBattleFramesForSkin(id);
+  const sources = layered ? [...layered.character, ...layered.enemy] : battleFramesForSkin(id);
+  BATTLE_IMAGE_CACHE[id] = sources.map(src => {
     const img = new Image();
     img.src = src;
     if (img.decode) img.decode().catch(() => {});
@@ -1252,13 +1272,33 @@ function setBattleFrame(frame, src) {
   if (frame.getAttribute('src') !== src) frame.src = src;
 }
 
+function syncBattleIdleFrame() {
+  const skin = characterSkinById(S.equippedCharacterSkin);
+  const stage = document.getElementById('battle-stage');
+  const frame = document.getElementById('battle-frame');
+  const characterFrame = document.getElementById('battle-character-frame');
+  const enemyFrame = document.getElementById('battle-enemy-frame');
+  if (!stage || !frame || !characterFrame || !enemyFrame) return;
+  const layered = layeredBattleFramesForSkin(skin.id);
+  stage.classList.toggle('separate', !!layered);
+  if (layered) {
+    setBattleFrame(characterFrame, layered.character[0]);
+    setBattleFrame(enemyFrame, layered.enemy[0]);
+  } else {
+    setBattleFrame(frame, battleFramesForSkin(skin.id)[0]);
+  }
+}
+
 function playBattleReward(amount, options = {}) {
   const showXp = options.showXp !== false;
   const stage = document.getElementById('battle-stage');
   const frame = document.getElementById('battle-frame');
+  const characterFrame = document.getElementById('battle-character-frame');
+  const enemyFrame = document.getElementById('battle-enemy-frame');
   const xpPop = document.getElementById('battle-xp-pop');
-  if (!stage || !frame || !xpPop) return;
+  if (!stage || !frame || !characterFrame || !enemyFrame || !xpPop) return;
   const frames = battleFramesForSkin(S.equippedCharacterSkin);
+  const layered = layeredBattleFramesForSkin(S.equippedCharacterSkin);
   const runId = (stage._battleRunId || 0) + 1;
   stage._battleRunId = runId;
   xpPop.textContent = `+${amount}XP`;
@@ -1267,25 +1307,42 @@ function playBattleReward(amount, options = {}) {
   (stage._battleFrameTimers || []).forEach(timer => clearTimeout(timer));
   stage._battleFrameTimers = [];
   clearTimeout(stage._battleTimer);
-  setBattleFrame(frame, frames[0]);
+  stage.classList.toggle('separate', !!layered);
+  if (layered) {
+    setBattleFrame(characterFrame, layered.character[0]);
+    setBattleFrame(enemyFrame, layered.enemy[0]);
+  } else {
+    setBattleFrame(frame, frames[0]);
+  }
   void stage.offsetWidth;
   stage.classList.add('attacking');
 
-  frames.forEach((src, idx) => {
+  const frameCount = layered ? layered.character.length : frames.length;
+  Array.from({length: frameCount}).forEach((_, idx) => {
     const timer = setTimeout(() => {
       if (stage._battleRunId !== runId) return;
-      setBattleFrame(frame, src);
+      if (layered) {
+        setBattleFrame(characterFrame, layered.character[idx]);
+        setBattleFrame(enemyFrame, layered.enemy[idx]);
+      } else {
+        setBattleFrame(frame, frames[idx]);
+      }
     }, idx * 110);
     stage._battleFrameTimers.push(timer);
   });
 
   stage._battleTimer = setTimeout(() => {
     if (stage._battleRunId !== runId) return;
-    setBattleFrame(frame, frames[0]);
+    if (layered) {
+      setBattleFrame(characterFrame, layered.character[0]);
+      setBattleFrame(enemyFrame, layered.enemy[0]);
+    } else {
+      setBattleFrame(frame, frames[0]);
+    }
     stage.classList.remove('attacking');
     xpPop.style.display = '';
     stage._battleFrameTimers = [];
-  }, frames.length * 110 + 140);
+  }, frameCount * 110 + 140);
 }
 
 function playBattlePreview() {
