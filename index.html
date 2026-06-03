@@ -631,6 +631,9 @@ const CHARACTER_SKINS = [
   {id:'chihuahua', name:'말안듣는 치와와', price:200, portrait:'assets/chihuahua-portrait.png', framePrefix:'chihuahua-battle-frame'},
   {id:'porongi', name:'뽀롱이', price:200, portrait:'assets/porongi-portrait.png', framePrefix:'porongi-battle-frame'},
   {id:'jjaigeunwoo', name:'짜이근우', price:300, portrait:'assets/jjaigeunwoo-portrait.png', framePrefix:'jjaigeunwoo-battle-frame'},
+  {id:'professor', name:'교수님', price:200, portrait:'assets/professor-portrait.png', framePrefix:'professor-battle-frame'},
+  {id:'bunny', name:'바니걸', price:200, portrait:'assets/bunny-portrait.png', framePrefix:'bunny-battle-frame'},
+  {id:'schoolgirl', name:'여고생', price:200, portrait:'assets/schoolgirl-portrait.png', framePrefix:'schoolgirl-battle-frame'},
 ];
 const DIFF_XP = {easy:15, normal:30, hard:60};
 const XP_PER_LEVEL = 100;
@@ -689,8 +692,10 @@ function cleanState(raw) {
   state.level = Number.isFinite(+state.level) ? Math.max(1, Math.floor(+state.level)) : 1;
   state.coins = Number.isFinite(+state.coins) ? Math.max(0, Math.floor(+state.coins)) : 0;
   state.xp = Number.isFinite(+state.xp) ? Math.max(0, Math.floor(+state.xp)) : 0;
-  const maxXp = XP_PER_LEVEL;
-  if (state.xp >= maxXp) state.xp = maxXp - 1;
+  while (state.xp >= XP_PER_LEVEL) {
+    state.xp -= XP_PER_LEVEL;
+    state.level += 1;
+  }
   state.ownedCharacterSkins = Array.isArray(state.ownedCharacterSkins)
     ? state.ownedCharacterSkins.filter(id => validIds.includes(id))
     : ['default'];
@@ -706,7 +711,7 @@ function cleanState(raw) {
 }
 
 function isSuspiciousUnsignedState(state) {
-  return state.coins > 5000 || state.level > 50 || state.xp >= XP_PER_LEVEL;
+  return state.coins > 5000 || state.level > 50;
 }
 
 function loadState() {
@@ -1099,7 +1104,7 @@ function updateStatBar() {
   const equippedCharacter = characterSkinById(S.equippedCharacterSkin);
   avatar.innerHTML = equippedCharacter.portrait
     ? `<img src="${equippedCharacter.portrait}" alt="${equippedCharacter.name} 초상화">`
-    : '🧑‍💻';
+    : '';
   const battleFrame = document.getElementById('battle-frame');
   const battleStage = document.getElementById('battle-stage');
   if (battleFrame && (!battleStage || !battleStage.classList.contains('attacking'))) {
