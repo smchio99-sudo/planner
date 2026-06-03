@@ -18,7 +18,10 @@ const CHARACTER_SKINS = [
   { id: "dark", price: 200 },
   { id: "chihuahua", price: 200 },
   { id: "porongi", price: 200 },
-  { id: "jjaigeunwoo", price: 300 }
+  { id: "jjaigeunwoo", price: 300 },
+  { id: "professor", price: 200 },
+  { id: "bunny", price: 200 },
+  { id: "schoolgirl", price: 200 }
 ];
 
 const DEFAULT_PROFILE = {
@@ -68,7 +71,10 @@ function cleanProfile(raw = {}) {
   const profile = { ...DEFAULT_PROFILE, ...raw };
   profile.level = Number.isFinite(+profile.level) ? Math.max(1, Math.floor(+profile.level)) : 1;
   profile.xp = Number.isFinite(+profile.xp) ? Math.max(0, Math.floor(+profile.xp)) : 0;
-  if (profile.xp >= XP_PER_LEVEL) profile.xp = XP_PER_LEVEL - 1;
+  while (profile.xp >= XP_PER_LEVEL) {
+    profile.xp -= XP_PER_LEVEL;
+    profile.level += 1;
+  }
   profile.coins = Number.isFinite(+profile.coins) ? Math.max(0, Math.floor(+profile.coins)) : 0;
   profile.ownedCharacterSkins = Array.isArray(profile.ownedCharacterSkins)
     ? profile.ownedCharacterSkins.filter((id) => skinById(id))
