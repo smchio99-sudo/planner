@@ -347,25 +347,68 @@ body::before{
   background:none;color:var(--txt2);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .2s}
 .btn-confirm-no:hover{background:var(--bg3)}
 
-/* ─── intro modal ─── */
-.intro-modal{background:#ffffff;border:1px solid var(--border2);border-radius:20px;
-  padding:28px 28px 24px;animation:popIn .4s cubic-bezier(.34,1.56,.64,1);
-  max-width:340px;width:92%;position:relative;overflow:hidden}
-.intro-modal::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
-  background:linear-gradient(90deg,var(--accent),var(--accent2),var(--gold))}
-.intro-header{display:flex;align-items:center;gap:10px;margin-bottom:16px}
-.intro-icon{font-size:32px;flex-shrink:0}
-.intro-main-title{font-size:20px;font-weight:700;color:var(--txt)}
-.intro-items{display:flex;flex-direction:column;gap:10px;margin-bottom:22px}
-.intro-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;
-  background:var(--bg3);border-radius:10px;border:1px solid var(--border)}
-.intro-item-icon{font-size:20px;flex-shrink:0;margin-top:1px}
-.intro-item-text{font-size:13px;color:var(--txt2);line-height:1.5}
-.intro-item-text strong{color:var(--txt);font-weight:700;display:block;margin-bottom:2px}
-.btn-intro-ok{width:100%;padding:12px;border:none;border-radius:var(--radius);
-  background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;
-  font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s}
-.btn-intro-ok:hover{opacity:.9;transform:translateY(-1px)}
+/* ─── tutorial overlay ─── */
+#tut-overlay{
+  position:fixed;inset:0;z-index:800;pointer-events:none;
+  transition:opacity .35s ease;
+}
+#tut-overlay.active{pointer-events:auto}
+#tut-dimmer{
+  position:absolute;inset:0;
+  background:rgba(10,12,26,.72);
+  transition:opacity .35s ease;
+  opacity:0;
+}
+#tut-overlay.active #tut-dimmer{opacity:1}
+/* punch-hole cutout via clip-path — updated by JS */
+#tut-hole{
+  position:absolute;inset:0;
+  background:rgba(10,12,26,.72);
+  transition:opacity .35s ease;
+  opacity:0;
+  /* clip-path set by JS */
+}
+#tut-overlay.active #tut-hole{opacity:1}
+
+/* highlight ring that surrounds the focused element */
+#tut-ring{
+  position:fixed;
+  border-radius:12px;
+  box-shadow:0 0 0 3px var(--accent),0 0 0 9999px rgba(10,12,26,.72);
+  pointer-events:none;
+  z-index:801;
+  transition:top .4s cubic-bezier(.4,0,.2,1),left .4s cubic-bezier(.4,0,.2,1),
+             width .4s cubic-bezier(.4,0,.2,1),height .4s cubic-bezier(.4,0,.2,1),
+             border-radius .3s,opacity .3s;
+  opacity:0;
+}
+#tut-ring.visible{opacity:1}
+
+/* tooltip bubble */
+#tut-tip{
+  position:fixed;z-index:802;
+  background:#fff;border:1px solid var(--border2);border-radius:14px;
+  padding:16px 18px;max-width:290px;width:calc(100vw - 40px);
+  box-shadow:0 8px 32px rgba(0,0,0,.18);
+  opacity:0;transform:translateY(8px);
+  transition:opacity .3s ease,transform .3s ease;
+  pointer-events:none;
+}
+#tut-tip.visible{opacity:1;transform:none;pointer-events:auto}
+#tut-tip::before{content:'';position:absolute;width:0;height:0;border:8px solid transparent}
+#tut-tip.arrow-top::before{border-bottom-color:#fff;top:-16px;left:50%;transform:translateX(-50%)}
+#tut-tip.arrow-bottom::before{border-top-color:#fff;bottom:-16px;left:50%;transform:translateX(-50%)}
+#tut-tip.arrow-left::before{border-right-color:#fff;left:-16px;top:50%;transform:translateY(-50%)}
+.tut-step-badge{font-size:10px;font-weight:700;color:var(--accent);background:rgba(91,141,238,.1);
+  border:1px solid rgba(91,141,238,.25);border-radius:20px;padding:2px 8px;display:inline-block;margin-bottom:8px}
+.tut-title{font-size:15px;font-weight:700;color:var(--txt);margin-bottom:5px}
+.tut-desc{font-size:13px;color:var(--txt2);line-height:1.55}
+.tut-action{margin-top:12px;font-size:12px;font-weight:700;color:var(--accent);
+  display:flex;align-items:center;gap:5px;animation:tutBlink 1.2s ease infinite alternate}
+@keyframes tutBlink{from{opacity:.6}to{opacity:1}}
+.tut-skip{display:block;margin-top:10px;font-size:11px;color:var(--txt3);
+  background:none;border:none;cursor:pointer;font-family:inherit;padding:0;text-decoration:underline;text-underline-offset:2px}
+.tut-skip:hover{color:var(--txt2)}
 
 /* ─── motto ─── */
 .motto-wrap{display:flex;align-items:flex-start;gap:6px;margin-top:3px}
@@ -394,33 +437,16 @@ body::before{
 </head>
 <body>
 
-<!-- intro modal -->
-<div class="modal-bg" id="intro-modal-bg">
-<div class="intro-modal" onclick="event.stopPropagation()">
-  <div class="intro-header">
-    <span class="intro-icon">📖</span>
-    <span class="intro-main-title">이게 뭐임?</span>
+<!-- tutorial overlay -->
+<div id="tut-overlay">
+  <div id="tut-ring"></div>
+  <div id="tut-tip">
+    <span class="tut-step-badge" id="tut-badge">1 / 6</span>
+    <div class="tut-title" id="tut-title"></div>
+    <div class="tut-desc" id="tut-desc"></div>
+    <div class="tut-action" id="tut-action"></div>
+    <button class="tut-skip" onclick="tutSkip()">튜토리얼 건너뛰기</button>
   </div>
-  <div class="intro-items">
-    <div class="intro-item">
-      <span class="intro-item-icon">📝</span>
-      <div class="intro-item-text"><strong>목표/해야할 일 기록</strong>공부할 때 해야 할 일을 적고, 마무리하면 체크하면 됨.</div>
-    </div>
-    <div class="intro-item">
-      <span class="intro-item-icon">⭐</span>
-      <div class="intro-item-text"><strong>경험치 &amp; 레벨업</strong>퀘스트를 완료할수록 경험치가 쌓이고 레벨업 가능.</div>
-    </div>
-    <div class="intro-item">
-      <span class="intro-item-icon">🪙</span>
-      <div class="intro-item-text"><strong>코인 &amp; 스킨</strong>레벨업 시 코인 제공, 코인으로 아바타 스킨 구매 가능.</div>
-    </div>
-    <div class="intro-item">
-      <span class="intro-item-icon">📅</span>
-      <div class="intro-item-text"><strong>달력으로 기록 확인</strong>날짜별로 완료한 퀘스트 기록을 달력에서 확인 가능.</div>
-    </div>
-  </div>
-  <button class="btn-intro-ok" onclick="closeIntroModal()">이해했어요 👍</button>
-</div>
 </div>
 
 <!-- motto edit modal -->
@@ -536,7 +562,7 @@ body::before{
         <svg width="11" height="11" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
       </button>
     </div>
-    <div class="xp-wrap">
+    <div class="xp-wrap" id="xp-wrap">
       <div class="xp-track"><div class="xp-fill" id="xp-fill" style="width:0%"></div></div>
       <div class="xp-label" id="xp-label">0 / 100 XP</div>
     </div>
@@ -1008,20 +1034,269 @@ async function init() {
   // 명언 적용
   const motto = S.motto || '✨ 오늘도 한 걸음씩!';
   document.getElementById('motto-text').textContent = motto;
-  // 최초 방문 안내
-  if (!localStorage.getItem('sq_intro_seen')) {
-    document.getElementById('intro-modal-bg').classList.add('show');
+  // 최초 방문 → 튜토리얼 시작
+  if (!localStorage.getItem('sq_tut_done')) {
+    setTimeout(tutStart, 400);
   }
   if (loadedState.tampered) {
     setTimeout(() => toast('🛡️', '비정상 저장값이 감지되어 상태를 초기화했어요.'), 700);
   }
 }
 
-// ─── intro modal ───
-function closeIntroModal() {
-  document.getElementById('intro-modal-bg').classList.remove('show');
-  localStorage.setItem('sq_intro_seen', '1');
+// ─── tutorial engine ───
+const TUT_STEPS = [
+  {
+    targetId: null,
+    badge: '👋 소개',
+    title: 'Study Quest가 뭐임?',
+    desc: '해야 할 일을 퀘스트로 등록하고, 완료하면 경험치와 코인을 얻는 공부 플래너야.\n레벨업하고 스킨도 사고 — 게임처럼 공부하는 거지.',
+    action: '👇 아래 버튼 눌러서 시작!',
+    wait: 'button', // next button only
+  },
+  {
+    targetId: 'add-form',
+    badge: '📝 STEP 1',
+    title: '퀘스트 입력',
+    desc: '여기에 오늘 할 일을 입력해봐.\n난이도도 고를 수 있어 — 어려울수록 XP를 더 받아!',
+    action: '✏️ 직접 입력하고 추가 버튼을 눌러봐',
+    wait: 'quest-added',
+  },
+  {
+    targetId: null, // dynamic — first quest item
+    badge: '✅ STEP 2',
+    title: '퀘스트 완료!',
+    desc: '방금 추가한 퀘스트를 클릭하면 완료 처리돼.\n경험치(XP)를 얻고, 상단 바가 채워지는 걸 확인해봐!',
+    action: '👆 퀘스트 카드를 클릭해봐',
+    wait: 'quest-done',
+  },
+  {
+    targetId: 'xp-wrap-target',
+    badge: '⭐ STEP 3',
+    title: 'XP & 레벨업',
+    desc: 'XP가 쌓이면 레벨업! 레벨업할 때마다 코인을 받아.\n코인으로는 캐릭터 스킨을 살 수 있어.',
+    action: '👇 다음 버튼 눌러서 계속',
+    wait: 'button',
+  },
+  {
+    targetId: 'shop-tab-target',
+    badge: '🏪 STEP 4',
+    title: '스킨 상점',
+    desc: '코인을 모아서 캐릭터 스킨을 구매할 수 있어.\n상단 전투 캐릭터도 바뀌거든!',
+    action: '👆 스킨 상점 탭을 클릭해봐',
+    wait: 'shop-clicked',
+  },
+];
+
+let tutStep = -1;
+let tutActive = false;
+let tutQuestAddedOnce = false;
+let tutQuestDoneOnce = false;
+
+function tutStart() {
+  if (localStorage.getItem('sq_tut_done')) return;
+  tutActive = true;
+  tutStep = -1;
+  document.getElementById('tut-overlay').classList.add('active');
+  tutAdvance();
 }
+
+function tutSkip() {
+  tutEnd();
+}
+
+function tutEnd() {
+  tutActive = false;
+  const overlay = document.getElementById('tut-overlay');
+  overlay.classList.remove('active');
+  document.getElementById('tut-ring').classList.remove('visible');
+  document.getElementById('tut-tip').classList.remove('visible');
+  localStorage.setItem('sq_tut_done', '1');
+  // remove any pointer-events blocks
+  document.querySelectorAll('.tut-blocked').forEach(el => el.classList.remove('tut-blocked'));
+}
+
+function tutAdvance() {
+  tutStep++;
+  if (tutStep >= TUT_STEPS.length) { tutEnd(); return; }
+  const step = TUT_STEPS[tutStep];
+  _tutRender(step);
+}
+
+function _tutGetTarget(step) {
+  if (!step.targetId) return null;
+  if (step.targetId === 'xp-wrap-target') return document.getElementById('xp-wrap') || document.querySelector('.xp-wrap');
+  if (step.targetId === 'shop-tab-target') return document.querySelector('.tab[onclick*="shop"]');
+  return document.getElementById(step.targetId);
+}
+
+const TUT_PAD = 8;
+
+function _tutRender(step) {
+  const ring = document.getElementById('tut-ring');
+  const tip = document.getElementById('tut-tip');
+  tip.classList.remove('visible');
+  ring.classList.remove('visible');
+
+  setTimeout(() => {
+    // badge / title / desc
+    document.getElementById('tut-badge').textContent = step.badge;
+    document.getElementById('tut-title').textContent = step.title;
+    document.getElementById('tut-desc').textContent = step.desc;
+    const actionEl = document.getElementById('tut-action');
+
+    const target = _tutGetTarget(step);
+
+    if (target) {
+      const r = target.getBoundingClientRect();
+      // position ring
+      ring.style.top    = (r.top    - TUT_PAD) + 'px';
+      ring.style.left   = (r.left   - TUT_PAD) + 'px';
+      ring.style.width  = (r.width  + TUT_PAD*2) + 'px';
+      ring.style.height = (r.height + TUT_PAD*2) + 'px';
+      ring.style.borderRadius = '12px';
+      ring.classList.add('visible');
+
+      // position tip: below target if room, else above
+      const tipW = Math.min(290, window.innerWidth - 40);
+      const spaceBelow = window.innerHeight - r.bottom - TUT_PAD - 20;
+      const spaceAbove = r.top - TUT_PAD - 20;
+      tip.classList.remove('arrow-top','arrow-bottom','arrow-left');
+      if (spaceBelow > 150 || spaceBelow > spaceAbove) {
+        tip.style.top  = (r.bottom + TUT_PAD + 12) + 'px';
+        tip.style.bottom = 'auto';
+        tip.classList.add('arrow-top');
+      } else {
+        tip.style.bottom = (window.innerHeight - r.top + TUT_PAD + 12) + 'px';
+        tip.style.top = 'auto';
+        tip.classList.add('arrow-bottom');
+      }
+      // center horizontally under/above target
+      let left = r.left + r.width/2 - tipW/2;
+      left = Math.max(16, Math.min(left, window.innerWidth - tipW - 16));
+      tip.style.left = left + 'px';
+      tip.style.right = 'auto';
+      tip.style.width = tipW + 'px';
+    } else {
+      // center in viewport for intro step
+      ring.classList.remove('visible');
+      tip.classList.remove('arrow-top','arrow-bottom','arrow-left');
+      const tipW2 = Math.min(290, window.innerWidth - 40);
+      tip.style.width = tipW2 + 'px';
+      tip.style.left = Math.round((window.innerWidth - tipW2) / 2) + 'px';
+      tip.style.top = Math.round((window.innerHeight - 260) / 2) + 'px';
+      tip.style.right = 'auto';
+      tip.style.bottom = 'auto';
+      tip.style.transform = 'none';
+      tip.style.transition = 'opacity .3s ease';
+    }
+
+    // action row
+    if (step.wait === 'button') {
+      actionEl.innerHTML = `<button onclick="tutAdvance()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:7px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">${tutStep === 0 ? '시작하기 🎮' : '다음 →'}</button>`;
+    } else {
+      actionEl.innerHTML = `<span>👉 ${step.action.replace(/^[^\s]+ /,'')}</span>`;
+    }
+
+    tip.classList.add('visible');
+
+    // wire up wait conditions
+    if (step.wait === 'quest-added') {
+      tutQuestAddedOnce = false;
+      _tutWatchQuestAdd();
+    } else if (step.wait === 'quest-done') {
+      tutQuestDoneOnce = false;
+      _tutWatchQuestDone();
+    } else if (step.wait === 'shop-clicked') {
+      _tutWatchShopTab();
+    }
+  }, 80);
+}
+
+function _tutWatchQuestAdd() {
+  const btn = document.querySelector('.btn-add');
+  if (!btn) return;
+  const handler = () => {
+    const inp = document.getElementById('q-input');
+    if (inp && inp.value.trim().length > 0) {
+      btn.removeEventListener('click', handler);
+      // wait a tick for quest to render
+      setTimeout(() => {
+        if (tutStep === 1) tutAdvance();
+      }, 400);
+    }
+  };
+  btn.addEventListener('click', handler);
+  // also watch Enter key
+  const inputEl = document.getElementById('q-input');
+  if (inputEl) {
+    const keyHandler = (e) => {
+      if (e.key === 'Enter' && inputEl.value.trim().length > 0) {
+        inputEl.removeEventListener('keydown', keyHandler);
+        setTimeout(() => { if (tutStep === 1) tutAdvance(); }, 400);
+      }
+    };
+    inputEl.addEventListener('keydown', keyHandler);
+  }
+}
+
+function _tutWatchQuestDone() {
+  // update ring to point at first quest item
+  const updateRingToFirstQuest = () => {
+    const first = document.querySelector('.quest-item:not(.done)');
+    if (!first) return;
+    const r = first.getBoundingClientRect();
+    const ring = document.getElementById('tut-ring');
+    ring.style.top    = (r.top    - TUT_PAD) + 'px';
+    ring.style.left   = (r.left   - TUT_PAD) + 'px';
+    ring.style.width  = (r.width  + TUT_PAD*2) + 'px';
+    ring.style.height = (r.height + TUT_PAD*2) + 'px';
+    ring.classList.add('visible');
+    // reposition tip below the quest
+    const tip = document.getElementById('tut-tip');
+    const spaceBelow = window.innerHeight - r.bottom - 20;
+    tip.classList.remove('arrow-top','arrow-bottom');
+    if (spaceBelow > 130) {
+      tip.style.top = (r.bottom + TUT_PAD + 12) + 'px';
+      tip.style.bottom = 'auto';
+      tip.classList.add('arrow-top');
+    } else {
+      tip.style.bottom = (window.innerHeight - r.top + TUT_PAD + 12) + 'px';
+      tip.style.top = 'auto';
+      tip.classList.add('arrow-bottom');
+    }
+    const tipW = Math.min(290, window.innerWidth - 40);
+    let left = r.left + r.width/2 - tipW/2;
+    left = Math.max(16, Math.min(left, window.innerWidth - tipW - 16));
+    tip.style.left = left + 'px';
+  };
+  setTimeout(updateRingToFirstQuest, 100);
+
+  // intercept toggleQuest — patch it temporarily
+  const origToggle = window.toggleQuest;
+  window.toggleQuest = function(idx) {
+    origToggle(idx);
+    if (tutStep === 2 && !tutQuestDoneOnce) {
+      tutQuestDoneOnce = true;
+      window.toggleQuest = origToggle; // restore
+      setTimeout(() => { if (tutStep === 2) tutAdvance(); }, 600);
+    }
+  };
+}
+
+function _tutWatchShopTab() {
+  const shopTab = document.querySelector('.tab[onclick*="shop"]');
+  if (!shopTab) return;
+  const handler = () => {
+    shopTab.removeEventListener('click', handler);
+    setTimeout(() => {
+      if (tutStep === 4) tutAdvance();
+    }, 300);
+  };
+  shopTab.addEventListener('click', handler);
+}
+
+// ─── intro modal stub (removed — replaced by tutorial) ───
+function closeIntroModal() { /* no-op — kept for safety */ }
 
 // ─── motto modal ───
 function openMottoModal() {
