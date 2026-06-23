@@ -352,25 +352,18 @@ body::before{
   position:fixed;inset:0;z-index:800;pointer-events:none;
   transition:opacity .35s ease;
 }
-#tut-overlay.active{pointer-events:auto}
+/* dimmer는 항상 pointer-events:none — 하이라이트 영역 클릭 통과시킴 */
 #tut-dimmer{
   position:absolute;inset:0;
   background:rgba(10,12,26,.72);
   transition:opacity .35s ease;
   opacity:0;
+  pointer-events:none;
 }
 #tut-overlay.active #tut-dimmer{opacity:1}
-/* punch-hole cutout via clip-path — updated by JS */
-#tut-hole{
-  position:absolute;inset:0;
-  background:rgba(10,12,26,.72);
-  transition:opacity .35s ease;
-  opacity:0;
-  /* clip-path set by JS */
-}
-#tut-overlay.active #tut-hole{opacity:1}
+#tut-hole{display:none}/* 미사용 */
 
-/* highlight ring that surrounds the focused element */
+/* highlight ring — pointer-events:none 유지 */
 #tut-ring{
   position:fixed;
   border-radius:12px;
