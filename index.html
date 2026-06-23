@@ -859,6 +859,10 @@ async function loadRemoteApp() {
     renderCalendar();
     renderShop();
     toast('🔐', '계정을 불러왔어요.');
+    // 신규 유저면 튜토리얼 시작 (localStorage 기준)
+    if (!localStorage.getItem('sq_tut_done')) {
+      setTimeout(tutStart, 600);
+    }
   } catch (err) {
     setAuthError(firebaseMessage(err));
   }
@@ -1101,23 +1105,43 @@ function tutStart() {
 }
 
 function tutSkip() {
-  tutEnd();
+  tutEnd(false); // 건너뛰기 → 보상 없음
 }
 
-function tutEnd() {
+async function tutEnd(reward = true) {
   tutActive = false;
   const overlay = document.getElementById('tut-overlay');
   overlay.classList.remove('active');
   document.getElementById('tut-ring').classList.remove('visible');
   document.getElementById('tut-tip').classList.remove('visible');
   localStorage.setItem('sq_tut_done', '1');
-  // remove any pointer-events blocks
   document.querySelectorAll('.tut-blocked').forEach(el => el.classList.remove('tut-blocked'));
+
+  if (!reward) return;
+
+  // 100코인 지급
+  if (firebaseEnabled && currentUser) {
+    try {
+      const result = await callGameFunction('addCoins', { amount: 100, reason: 'tutorial' });
+      S = cleanState(result.profile);
+      updateStatBar();
+    } catch (err) {
+      // Firebase 함수 없으면 로컬로 fallback
+      S.coins = (S.coins || 0) + 100;
+      saveState();
+      updateStatBar();
+    }
+  } else {
+    S.coins = (S.coins || 0) + 100;
+    saveState();
+    updateStatBar();
+  }
+  setTimeout(() => toast('🎉', '튜토리얼 완료! 100코인 지급!'), 300);
 }
 
 function tutAdvance() {
   tutStep++;
-  if (tutStep >= TUT_STEPS.length) { tutEnd(); return; }
+  if (tutStep >= TUT_STEPS.length) { tutEnd(true); return; }
   const step = TUT_STEPS[tutStep];
   _tutRender(step);
 }
